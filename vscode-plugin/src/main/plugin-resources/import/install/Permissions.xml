@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE sailpoint PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<sailpoint>
+    <SPRight displayName="iiqDevToolsAccess" name="iiqDevToolsAccess">
+        <Description>Allow access to VSCode Plugin REST Service</Description>
+    </SPRight>
+
+    <Capability displayName="iiqDevToolsAccess" name="iiqDevToolsAccess">
+        <Description>Allow access to VSCode Plugin REST Service</Description>
+        <RightRefs>
+            <Reference class="sailpoint.object.SPRight" name="iiqDevToolsAccess"/>
+        </RightRefs>
+    </Capability>
+
+</sailpoint>

@@ -1,0 +1,3 @@
+- Revoir les icônes
+- Voir pour les exports, format et répertoire par défaut
+- Editeur de workflow
