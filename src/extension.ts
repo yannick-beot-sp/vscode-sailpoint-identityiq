@@ -13,6 +13,7 @@ import { EnvironmentStatusBar } from "./services/EnvironmentStatusBar";
 import { TenantService } from "./services/TenantService";
 import { IIQTreeDataProvider, IIQTreeDragAndDropController } from "./views/IIQTreeDataProvider";
 import { ObjectTypeTreeItem } from "./views/IIQTreeItem";
+import { registerWorkflowPreview } from "./workflow";
 import { registerXmlCompletionSupport } from "./xml";
 
 /**
@@ -66,6 +67,9 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
 
         // DTD-driven XML completion (elements, attributes, enumerated values)
         registerXmlCompletionSupport(context),
+
+        // Workflow graphical preview
+        registerWorkflowPreview(context),
 
         // Environments
         vscode.commands.registerCommand(COMMANDS.addTenant, tenantCommands.addTenant, tenantCommands),
