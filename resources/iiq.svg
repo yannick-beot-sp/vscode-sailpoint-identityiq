@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Simple "IIQ" mark: two bars and a magnifier-like Q -->
+  <line x1="4" y1="5" x2="4" y2="15"/>
+  <line x1="8" y1="5" x2="8" y2="15"/>
+  <circle cx="15" cy="10" r="5"/>
+  <line x1="18.5" y1="13.5" x2="21" y2="16"/>
+  <line x1="3" y1="19" x2="21" y2="19"/>
+</svg>

@@ -1,0 +1,116 @@
+@baseUrl=http://localhost:8080/identityiq
+@url={{baseUrl}}/plugin/rest/iiq-devtools
+@user=spadmin
+@password=admin
+{{+
+  exports.defaultHeaders = {
+    'Accept': 'application/json',
+    'Authorization': 'Basic {{user}} {{password}}'
+  };
+}}
+
+### Ping: connection test and version negotiation
+
+GET {{url}}/system/ping
+...defaultHeaders
+
+### Object types supported by the generic interface
+
+GET {{url}}/system/classes
+...defaultHeaders
+
+### List rules (paginated, sorted)
+
+GET {{url}}/objects/Rule?start=0&limit=5&sortBy=name&sortDir=asc
+...defaultHeaders
+
+### Filter rules by name (case-insensitive)
+
+GET {{url}}/objects/Rule?query=Objects
+...defaultHeaders
+
+### List tasks without the reports
+
+GET {{url}}/objects/TaskDefinition?excludeTypes=Report,LiveReport
+...defaultHeaders
+
+### Import a test rule (single object or <sailpoint> bundle)
+# The XML travels in the "xml" property of a JSON envelope: the plugin REST
+# filter chain never delivers raw application/xml bodies to the resource.
+
+POST {{url}}/import
+...defaultHeaders
+Content-Type: application/json
+
+{
+  "xml": "<?xml version='1.0' encoding='UTF-8'?>\n<!DOCTYPE Rule PUBLIC \"sailpoint.dtd\" \"sailpoint.dtd\">\n<Rule name=\"VSCode-Test-Rule\" language=\"beanshell\">\n  <Description>Temporary rule created by test.http. Safe to delete.</Description>\n  <Source><![CDATA[\n    return \"hello from test.http\";\n  ]]></Source>\n</Rule>"
+}
+
+### Get the rule (XML travels as a string inside the JSON envelope)
+
+GET {{url}}/objects/Rule/Test-ClassLists
+...defaultHeaders
+
+### Metadata only: Content-Length / Last-Modified / ETag headers, no body
+
+HEAD {{url}}/objects/Rule/Test-ClassLists
+...defaultHeaders
+
+### Update the rule (single-object import semantics: ids ignored, references by name)
+
+PUT {{url}}/objects/Rule/VSCode-Test-Rule
+...defaultHeaders
+Content-Type: application/json
+
+{
+  "xml": "<?xml version='1.0' encoding='UTF-8'?>\n<!DOCTYPE Rule PUBLIC \"sailpoint.dtd\" \"sailpoint.dtd\">\n<Rule name=\"VSCode-Test-Rule\" language=\"beanshell\">\n  <Description>Temporary rule created by test.http. Safe to delete.</Description>\n  <Source><![CDATA[\n    return \"updated, identityName=\" + identityName;\n  ]]></Source>\n</Rule>"
+}
+
+### Run the rule with arguments -> { "result": ..., "executionTimeMs": ... }
+
+POST {{url}}/objects/Rule/Test-ClassLists/run
+...defaultHeaders
+Content-Type: application/json
+
+{ "identityName": "spadmin" }
+
+### Launch a task asynchronously -> { "result": "<TaskResult id>" }
+# @name runTask
+
+POST {{url}}/objects/TaskDefinition/Check%20Expired%20Work%20Items/run
+...defaultHeaders
+Content-Type: application/json
+
+{}
+
+### Poll the task status (completed/completionStatus are null while running)
+
+GET {{url}}/objects/TaskResult/{{runTask.result}}/status
+...defaultHeaders
+
+### Fetch the final TaskResult through the generic interface
+
+GET {{url}}/objects/TaskResult/{{runTask.result}}
+...defaultHeaders
+
+### Delete the test rule
+
+DELETE {{url}}/objects/Rule/VSCode-Test-Rule
+...defaultHeaders
+
+### List the tailable log files (file-backed Log4j2 appenders)
+# @name logFiles
+
+GET {{url}}/logs
+...defaultHeaders
+
+### First tail call: trailing window of the file, then poll with offset={{tailLog.result.nextOffset}}
+# @name tailLog
+
+GET {{url}}/logs/{{logFiles.result.0.key}}/tail
+...defaultHeaders
+
+### Incremental tail (an offset larger than the file answers rotated: true)
+
+GET {{url}}/logs/{{logFiles.result.0.key}}/tail?offset={{tailLog.result.nextOffset}}
+...defaultHeaders

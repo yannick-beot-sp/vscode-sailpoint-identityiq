@@ -1,26 +1,133 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { registerBeanshellLanguageSupport } from "./beanshell";
+import { FileCommands } from "./commands/fileCommands";
+import { FolderCommands } from "./commands/folderCommands";
+import { LogCommands } from "./commands/logCommands";
+import { ObjectCommands } from "./commands/objectCommands";
+import { RuleCommands } from "./commands/ruleCommands";
+import { TaskCommands } from "./commands/taskCommands";
+import { TenantCommands } from "./commands/tenantCommands";
+import { COMMANDS, DIFF_SCHEME, URI_SCHEME, VIEW_ID } from "./constants";
+import { IIQRemoteContentProvider, IIQResourceProvider } from "./files/IIQResourceProvider";
+import { EnvironmentStatusBar } from "./services/EnvironmentStatusBar";
+import { TenantService } from "./services/TenantService";
+import { IIQTreeDataProvider, IIQTreeDragAndDropController } from "./views/IIQTreeDataProvider";
+import { ObjectTypeTreeItem } from "./views/IIQTreeItem";
+import { registerXmlCompletionSupport } from "./xml";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscode-sailpoint-identityiq" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('vscode-sailpoint-identityiq.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from vscode-sailpoint-identityiq!');
-	});
-
-	context.subscriptions.push(disposable);
+/**
+ * Public API returned by {@link activate}.
+ * Used by the integration tests to access the services of the running extension.
+ */
+export interface IIQExtensionApi {
+    tenantService: TenantService;
+    treeDataProvider: IIQTreeDataProvider;
+    resourceProvider: IIQResourceProvider;
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
+    console.log("Activating extension vscode-sailpoint-identityiq");
+
+    // Services
+    const tenantService = new TenantService(context.globalState, context.secrets);
+    const statusBar = new EnvironmentStatusBar(tenantService);
+
+    // Tree view
+    const treeDataProvider = new IIQTreeDataProvider(tenantService);
+    const treeView = vscode.window.createTreeView(VIEW_ID, {
+        treeDataProvider,
+        canSelectMany: true,
+        dragAndDropController: new IIQTreeDragAndDropController(tenantService)
+    });
+
+    // Virtual file system (live edit of IdentityIQ objects) and diff content
+    const resourceProvider = new IIQResourceProvider(tenantService);
+    const remoteContentProvider = new IIQRemoteContentProvider(tenantService);
+
+    // Commands
+    const tenantCommands = new TenantCommands(tenantService);
+    const folderCommands = new FolderCommands(tenantService);
+    const objectCommands = new ObjectCommands(tenantService, treeDataProvider);
+    const fileCommands = new FileCommands(tenantService);
+    const ruleCommands = new RuleCommands(tenantService);
+    const taskCommands = new TaskCommands(tenantService);
+    const logCommands = new LogCommands(tenantService);
+
+    context.subscriptions.push(
+        statusBar,
+        ruleCommands,
+        logCommands,
+        treeView,
+        vscode.workspace.registerFileSystemProvider(URI_SCHEME, resourceProvider, { isCaseSensitive: true }),
+        vscode.workspace.registerTextDocumentContentProvider(DIFF_SCHEME, remoteContentProvider),
+
+        // BeanShell language assistance (completion, hover, signature help)
+        registerBeanshellLanguageSupport(context),
+
+        // DTD-driven XML completion (elements, attributes, enumerated values)
+        registerXmlCompletionSupport(context),
+
+        // Environments
+        vscode.commands.registerCommand(COMMANDS.addTenant, tenantCommands.addTenant, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.removeTenant, tenantCommands.removeTenant, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.renameTenant, tenantCommands.renameTenant, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.testConnection, tenantCommands.testConnection, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.setActiveTenant, tenantCommands.setActiveTenant, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.selectEnvironment, tenantCommands.selectEnvironment, tenantCommands),
+
+        // Folders
+        vscode.commands.registerCommand(COMMANDS.addFolder, folderCommands.addFolder, folderCommands),
+        vscode.commands.registerCommand(COMMANDS.renameFolder, folderCommands.renameFolder, folderCommands),
+        vscode.commands.registerCommand(COMMANDS.removeFolder, folderCommands.removeFolder, folderCommands),
+
+        // Objects
+        vscode.commands.registerCommand(COMMANDS.openObject, objectCommands.openObject, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.exportObjects, objectCommands.exportObjects, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.saveObject, objectCommands.saveObject, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.deleteObject, objectCommands.deleteObject, objectCommands),
+
+        // Files
+        vscode.commands.registerCommand(COMMANDS.importFile, fileCommands.importFile, fileCommands),
+        vscode.commands.registerCommand(COMMANDS.importFileExplorer, fileCommands.importFileFromExplorer, fileCommands),
+        vscode.commands.registerCommand(COMMANDS.refreshFile, fileCommands.refreshFile, fileCommands),
+        vscode.commands.registerCommand(COMMANDS.compareFile, fileCommands.compareFile, fileCommands),
+
+        // Rules & tasks
+        vscode.commands.registerCommand(COMMANDS.addRule, ruleCommands.addRule, ruleCommands),
+        vscode.commands.registerCommand(COMMANDS.runRule, ruleCommands.runRule, ruleCommands),
+        vscode.commands.registerCommand(COMMANDS.runTask, taskCommands.runTask, taskCommands),
+
+        // Server logs
+        vscode.commands.registerCommand(COMMANDS.tailLogs, logCommands.tailLogs, logCommands),
+        vscode.commands.registerCommand(COMMANDS.stopTailLogs, logCommands.stopTailLogs, logCommands),
+
+        // Tree view helpers
+        vscode.commands.registerCommand(COMMANDS.refresh, () => treeDataProvider.refresh()),
+        vscode.commands.registerCommand(COMMANDS.refreshNode,
+            (node: ObjectTypeTreeItem) => treeDataProvider.refresh(node)),
+        vscode.commands.registerCommand(COMMANDS.loadMore,
+            (node: ObjectTypeTreeItem) => treeDataProvider.loadMore(node)),
+        vscode.commands.registerCommand(COMMANDS.sortByName,
+            (node: ObjectTypeTreeItem) => treeDataProvider.sortBy(node, "name")),
+        vscode.commands.registerCommand(COMMANDS.sortByLastModified,
+            (node: ObjectTypeTreeItem) => treeDataProvider.sortBy(node, "lastModified")),
+        vscode.commands.registerCommand(COMMANDS.filterObjects, async (node: ObjectTypeTreeItem) => {
+            const query = await vscode.window.showInputBox({
+                prompt: `Filter ${node.definition.label} by name`,
+                placeHolder: "Name contains...",
+                value: treeDataProvider.getFilter(node),
+                ignoreFocusOut: true
+            });
+            if (query === undefined) {
+                return;
+            }
+            treeDataProvider.setFilter(node, query.trim() || undefined);
+        }),
+        vscode.commands.registerCommand(COMMANDS.clearFilter,
+            (node: ObjectTypeTreeItem) => treeDataProvider.setFilter(node, undefined))
+    );
+
+    return { tenantService, treeDataProvider, resourceProvider };
+}
+
+export function deactivate() { }
