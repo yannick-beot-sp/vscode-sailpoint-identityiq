@@ -1,0 +1,32 @@
+{
+  "scopeName": "source.beanshell.injection",
+  "injectionSelector": "L:text.xml -comment -string",
+  "patterns": [
+    { "include": "#beanshell-cdata" },
+    { "include": "#beanshell-plain" }
+  ],
+  "repository": {
+    "beanshell-cdata": {
+      "begin": "(?<=<Source\\b(?:[^>]*[^/>])?>)\\s*(<!\\[CDATA\\[)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.xml" }
+      },
+      "name": "string.unquoted.cdata.xml",
+      "end": "(\\]\\]>)|(?=</Source>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.xml" }
+      },
+      "contentName": "meta.embedded.block.java",
+      "patterns": [ { "include": "source.java" } ]
+    },
+    "beanshell-plain": {
+      "begin": "(?<=<Source\\b(?:[^>]*[^/>])?>)(?!\\s*<!\\[CDATA\\[)([^<])",
+      "beginCaptures": {
+        "1": { "name": "meta.embedded.block.java" }
+      },
+      "end": "(?=<)",
+      "contentName": "meta.embedded.block.java",
+      "patterns": [ { "include": "source.java" } ]
+    }
+  }
+}

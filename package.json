@@ -27,6 +27,16 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "grammars": [
+      {
+        "scopeName": "source.beanshell.injection",
+        "path": "./syntaxes/beanshell-injection.tmLanguage.json",
+        "injectTo": ["text.xml"],
+        "embeddedLanguages": {
+          "meta.embedded.block.java": "java"
+        }
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -147,6 +157,12 @@
         "title": "Run task...",
         "category": "IIQ",
         "icon": "$(play)"
+      },
+      {
+        "command": "iiq.preview-workflow",
+        "title": "Preview workflow",
+        "category": "IIQ",
+        "icon": "$(open-preview)"
       },
       {
         "command": "iiq.tail-logs",
@@ -280,6 +296,17 @@
         {
           "command": "iiq.compare-file",
           "when": "editorLangId == xml"
+        },
+        {
+          "command": "iiq.preview-workflow",
+          "when": "iiq.isWorkflow"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "iiq.preview-workflow",
+          "when": "resourceLangId == xml && iiq.isWorkflow",
+          "group": "navigation"
         }
       ],
       "view/title": [
@@ -471,6 +498,11 @@
           "command": "iiq.run-rule",
           "when": "resourceLangId == xml",
           "group": "iiq@4"
+        },
+        {
+          "command": "iiq.preview-workflow",
+          "when": "resourceLangId == xml && iiq.isWorkflow",
+          "group": "iiq@5"
         }
       ],
       "explorer/context": [
@@ -587,13 +619,14 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc --noEmit -p src/webview",
     "lint": "eslint src",
     "test": "vscode-test",
     "generate-jdk-index": "java scripts/GenerateJdkIndex.java > resources/jdk-core-index.json",
     "build-test-fixtures": "cd src/test/fixtures && rm -rf classes && mkdir classes && javac -g --release 11 -d classes java-src/com/example/fixture/*.java && jar cf fixture.jar -C classes . && rm -rf classes"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "axios": "^1.13.4",
     "yauzl": "^3.4.0"
   },

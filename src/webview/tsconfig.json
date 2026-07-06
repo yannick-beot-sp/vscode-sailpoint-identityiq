@@ -1,0 +1,23 @@
+{
+    // Webview scripts run in the browser (bundled by esbuild as IIFE), so
+    // they type-check against the DOM, unlike the Node extension host code.
+    // This folder is excluded from the root tsconfig; `npm run check-types`
+    // checks both projects.
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "target": "ES2022",
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "types": [],
+        "strict": true,
+        "noEmit": true
+    },
+    "include": [
+        "./**/*.ts",
+        "../workflow/workflowModel.ts"
+    ]
+}

@@ -50,6 +50,7 @@ export const COMMANDS = {
     addRule: "iiq.rule.add",
     runRule: "iiq.run-rule",
     runTask: "iiq.run-task",
+    previewWorkflow: "iiq.preview-workflow",
     tailLogs: "iiq.tail-logs",
     stopTailLogs: "iiq.stop-tail-logs",
     saveObject: "iiq.object.save",
