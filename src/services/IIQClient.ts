@@ -4,6 +4,7 @@ import { EXPECTED_API_VERSION, PLUGIN_REST_BASE_PATH } from "../constants";
 import { ObjectListResult, ObjectSummary } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { getRejectUnauthorized, SortField } from "../utils/configurationUtils";
+import { wrapSourceCdata } from "../utils/xmlUtils";
 import { TenantService } from "./TenantService";
 
 /**
@@ -184,7 +185,7 @@ export class IIQClient {
         try {
             const response = await client.get<Envelope<string>>(
                 `/objects/${encodeURIComponent(objectType)}/${encodeURIComponent(nameOrId)}`);
-            return response.data.result;
+            return wrapSourceCdata(response.data.result);
         } catch (error) {
             throw improveError(error, this.tenant);
         }

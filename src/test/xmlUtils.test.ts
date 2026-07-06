@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { buildSailpointBundle, cleanXml, getObjectInfoFromXml, XmlCleaningOptions } from "../utils/xmlUtils";
+import { buildSailpointBundle, cleanXml, getObjectInfoFromXml, wrapSourceCdata, XmlCleaningOptions } from "../utils/xmlUtils";
 
 const ALL_OPTIONS: XmlCleaningOptions = {
     removeIds: true,
@@ -81,5 +81,45 @@ suite("XML utils Test Suite", () => {
         // Only one prolog and one doctype
         assert.strictEqual(bundle.match(/<\?xml/g)?.length, 1);
         assert.strictEqual(bundle.match(/<!DOCTYPE/g)?.length, 1);
+    });
+
+    test("wrapSourceCdata wraps escaped Source text in a CDATA section", () => {
+        const escaped = `<Rule name="My Rule" language="beanshell">
+  <Source>if (a &lt; b) { return "x &amp; y"; }</Source>
+</Rule>`;
+        const result = wrapSourceCdata(escaped);
+        assert.ok(result.includes('<Source><![CDATA[if (a < b) { return "x & y"; }]]></Source>'));
+    });
+
+    test("wrapSourceCdata leaves an already-CDATA Source untouched", () => {
+        const result = wrapSourceCdata(SAMPLE_RULE);
+        assert.strictEqual(result, SAMPLE_RULE);
+    });
+
+    test("wrapSourceCdata preserves attributes on the Source element", () => {
+        const withAttr = `<Rule name="My Rule"><Source lang="beanshell">x &lt; y</Source></Rule>`;
+        const result = wrapSourceCdata(withAttr);
+        assert.ok(result.includes('<Source lang="beanshell"><![CDATA[x < y]]></Source>'));
+    });
+
+    test("wrapSourceCdata dedents escaped Source inherited from deep ancestor nesting", () => {
+        const nested = `<Workflow name="Test Workflow">
+  <Step name="step1">
+    <Approval>
+      <Script>
+        <Source>
+          System.out.println(&quot;hi&quot;);
+          if (a &lt; b) {
+            return wfcontext.getStepName();
+          }
+        </Source>
+      </Script>
+    </Approval>
+  </Step>
+</Workflow>`;
+        const result = wrapSourceCdata(nested);
+        assert.ok(result.includes(
+            '<Source><![CDATA[\nSystem.out.println("hi");\nif (a < b) {\n  return wfcontext.getStepName();\n}\n]]></Source>'),
+            `unexpected result:\n${result}`);
     });
 });
