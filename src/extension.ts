@@ -4,6 +4,7 @@ import { ApplicationCommands } from "./commands/applicationCommands";
 import { FileCommands } from "./commands/fileCommands";
 import { FolderCommands } from "./commands/folderCommands";
 import { LogCommands } from "./commands/logCommands";
+import { LoggingCommands } from "./commands/loggingCommands";
 import { ObjectCommands } from "./commands/objectCommands";
 import { RuleCommands } from "./commands/ruleCommands";
 import { TaskCommands } from "./commands/taskCommands";
@@ -55,6 +56,7 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
     const taskCommands = new TaskCommands(tenantService);
     const applicationCommands = new ApplicationCommands(tenantService);
     const logCommands = new LogCommands(tenantService);
+    const loggingCommands = new LoggingCommands(tenantService);
 
     context.subscriptions.push(
         statusBar,
@@ -112,6 +114,8 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         // Server logs
         vscode.commands.registerCommand(COMMANDS.tailLogs, logCommands.tailLogs, logCommands),
         vscode.commands.registerCommand(COMMANDS.stopTailLogs, logCommands.stopTailLogs, logCommands),
+        vscode.commands.registerCommand(COMMANDS.configureLogging,
+            loggingCommands.configureLoggerLevel, loggingCommands),
 
         // Tree view helpers
         vscode.commands.registerCommand(COMMANDS.refresh, () => treeDataProvider.refresh()),

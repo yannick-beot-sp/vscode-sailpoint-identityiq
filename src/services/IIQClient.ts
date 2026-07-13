@@ -355,6 +355,38 @@ export class IIQClient {
     }
 
     /**
+     * Sets a logger's level at runtime ("Configure logging..." command).
+     * An in-memory change to the live Log4j2 configuration on the server:
+     * not persisted to log4j2.properties, lost on restart.
+     * @returns the level that was applied
+     */
+    public async setLoggerLevel(logger: string, level: string): Promise<string> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.put<Envelope<string>>(
+                `/logs/levels/${encodeURIComponent(logger)}`,
+                { level },
+                { headers: { "Content-Type": "application/json" } });
+            return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /**
+     * Removes a logger's explicit level override, so it reverts to
+     * inheriting from its parent logger.
+     */
+    public async resetLoggerLevel(logger: string): Promise<void> {
+        const client = await this.getAxios();
+        try {
+            await client.delete(`/logs/levels/${encodeURIComponent(logger)}`);
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /**
      * Tests the connection of an Application (calls the connector's
      * testConfiguration() server-side). Returns a human-readable success
      * message; connection failures are thrown as errors.

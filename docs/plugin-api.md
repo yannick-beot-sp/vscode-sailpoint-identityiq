@@ -485,14 +485,49 @@ Response `200`:
   answers `500`; the client treats it as transient and the next poll
   self-heals.
 
-### 7. Future endpoints (not used by the extension yet)
+### 8. Logger levels
+
+Changes a logger's level at runtime ("Configure logging..." command), so a
+specific package or class can be switched to `DEBUG` while reproducing an
+issue, then back to `INFO` — without a server restart. The change is an
+**in-memory update to the live Log4j2 configuration**: it is not persisted to
+`log4j2.properties` and does not survive a restart.
+
+Valid levels: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
+(case-insensitive).
+
+#### `PUT /logs/levels/{logger}`
+
+Sets the level of `{logger}` (a logger name, e.g.
+`sailpoint.connector.LDAPConnector`), creating its `LoggerConfig` if it did
+not already have one of its own.
+
+Request body:
+```json
+{ "level": "DEBUG" }
+```
+
+Response `200`:
+```json
+{ "result": "DEBUG" }
+```
+
+Response `400`: the body has no `level` property, or it is not one of the
+valid levels.
+
+#### `DELETE /logs/levels/{logger}`
+
+Removes `{logger}`'s explicit level override, so it reverts to inheriting
+from its parent logger.
+
+Response `204`, no body.
+
+### 9. Future endpoints (not used by the extension yet)
 
 Reserved for future features; do not implement for the MVP:
 
 - `POST /objects/Workflow/{nameOrId}/launch` — launch a workflow with a
   variable map (same shape as the task `run` action).
-- `PUT /logs/levels/{logger}` — change a logger's level at runtime (pairs
-  naturally with the live log stream).
 
 ## Plugin skeleton (for reference)
 

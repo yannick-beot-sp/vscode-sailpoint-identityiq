@@ -54,6 +54,11 @@ export class MockPluginServer {
     /** Per-call byte cap; small values make catch-up tests cheap */
     public logMaxChunkBytes = 64 * 1024;
 
+    // Logger levels state (contract of docs/plugin-api.md §8)
+    private static readonly VALID_LEVELS = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF"];
+    /** Explicit level overrides currently set, by logger name */
+    private readonly loggerLevels = new Map<string, string>();
+
     constructor(
         private readonly username = "spadmin",
         private readonly password = "admin") {
@@ -101,6 +106,11 @@ export class MockPluginServer {
 
     public has(objectType: string, name: string): boolean {
         return this.objects.get(objectType)?.has(name) ?? false;
+    }
+
+    /** Current level override of a logger, for test assertions (undefined when not overridden) */
+    public getLoggerLevel(logger: string): string | undefined {
+        return this.loggerLevels.get(logger);
     }
 
     /** Seeds the objects returned by a testConnector preview call */
@@ -331,6 +341,22 @@ export class MockPluginServer {
             return;
         }
 
+        // PUT /logs/levels/{logger}
+        if (req.method === "PUT" && segments.length === 3
+            && segments[0] === "logs" && segments[1] === "levels") {
+            this.setLoggerLevel(segments[2], body, res);
+            return;
+        }
+
+        // DELETE /logs/levels/{logger}
+        if (req.method === "DELETE" && segments.length === 3
+            && segments[0] === "logs" && segments[1] === "levels") {
+            this.loggerLevels.delete(segments[2]);
+            res.writeHead(204);
+            res.end();
+            return;
+        }
+
         this.json(res, 404, { error: `Unknown endpoint ${req.method} ${url.pathname}` });
     }
 
@@ -386,6 +412,31 @@ export class MockPluginServer {
                 rotated
             }
         });
+    }
+
+    /** Implements the PUT /logs/levels/{logger} contract (docs/plugin-api.md §8) */
+    private setLoggerLevel(logger: string, body: string, res: http.ServerResponse): void {
+        let level: unknown;
+        try {
+            level = JSON.parse(body).level;
+        } catch {
+            level = undefined;
+        }
+        if (typeof level !== "string" || level.length === 0) {
+            this.json(res, 400, {
+                error: "The request body must be a JSON object with a non-empty \"level\" string property"
+            });
+            return;
+        }
+        const upper = level.toUpperCase();
+        if (!MockPluginServer.VALID_LEVELS.includes(upper)) {
+            this.json(res, 400, {
+                error: `Unknown level "${level}": expected one of ${MockPluginServer.VALID_LEVELS.join(", ")}`
+            });
+            return;
+        }
+        this.loggerLevels.set(logger, upper);
+        this.json(res, 200, { result: upper });
     }
 
     /**

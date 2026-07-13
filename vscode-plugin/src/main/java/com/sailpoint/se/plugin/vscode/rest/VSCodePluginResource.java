@@ -41,10 +41,12 @@ import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.StringLayout;
+import org.apache.logging.log4j.core.config.Configurator;
 
 import com.sailpoint.se.plugin.vscode.dto.LogChunkDto;
 import com.sailpoint.se.plugin.vscode.dto.LogFileDto;
@@ -622,6 +624,58 @@ public class VSCodePluginResource extends BasePluginResource {
                 .fileSize(length)
                 .rotated(rotated)
                 .build());
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // 8. Logger levels
+    ////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Sets a logger's level at runtime, in memory: an in-place change to the
+     * live Log4j2 configuration, not persisted to log4j2.properties and lost
+     * on restart. Creates the {@code LoggerConfig} for the given name if it
+     * did not already have one of its own.
+     */
+    @PUT
+    @Path("logs/levels/{logger}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @RequiredRight(ACCESS_RIGHT)
+    public Map<String, Object> setLoggerLevel(@PathParam("logger") String logger, Map<String, Object> body) {
+        Level level = parseLevel(body);
+        LOG.info("setLoggerLevel(logger={}, level={})", logger, level);
+        audit("setLoggerLevel", logger + "=" + level);
+        Configurator.setLevel(logger, level);
+        return ok(level.name());
+    }
+
+    /**
+     * Removes a logger's explicit level override, so it reverts to
+     * inheriting from its parent in the live Log4j2 configuration.
+     */
+    @DELETE
+    @Path("logs/levels/{logger}")
+    @RequiredRight(ACCESS_RIGHT)
+    public Response resetLoggerLevel(@PathParam("logger") String logger) {
+        LOG.info("resetLoggerLevel(logger={})", logger);
+        audit("resetLoggerLevel", logger);
+        Configurator.setLevel(logger, (Level) null);
+        return Response.noContent().build();
+    }
+
+    /** Extracts and validates the {@code level} property of a PUT body */
+    private static Level parseLevel(Map<String, Object> body) {
+        Object levelName = body == null ? null : body.get("level");
+        if (!(levelName instanceof String) || Util.isNullOrEmpty((String) levelName)) {
+            throw error(Response.Status.BAD_REQUEST,
+                    "The request body must be a JSON object with a non-empty \"level\" string property");
+        }
+        String upper = ((String) levelName).toUpperCase();
+        Level level = Level.toLevel(upper, null);
+        if (level == null || !level.name().equals(upper)) {
+            throw error(Response.Status.BAD_REQUEST,
+                    "Unknown level \"" + levelName + "\": expected one of TRACE, DEBUG, INFO, WARN, ERROR, FATAL, OFF");
+        }
+        return level;
     }
 
     ////////////////////////////////////////////////////////////////////////

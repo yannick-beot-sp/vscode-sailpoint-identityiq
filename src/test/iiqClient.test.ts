@@ -13,8 +13,8 @@ import { getExtensionApi, makeTenant } from "./testHelpers";
  * end-to-end through vscode.workspace.fs.
  * Covers UC-04 (test connection), UC-10 (paginated/sorted lists),
  * UC-11/12 (open & save through the virtual FS), UC-13 (delete),
- * UC-22 (import), UC-30 (run rule), UC-31 (run task) and UC-32 (stream
- * server logs).
+ * UC-22 (import), UC-30 (run rule), UC-31 (run task), UC-32 (stream
+ * server logs) and UC-33 (configure logger levels).
  */
 suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
 
@@ -337,6 +337,25 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
     test("UC-32: an unknown appender key is rejected with a 404", async () => {
         await assert.rejects(() => client.getLogChunk("no-such-appender"),
             (error: unknown) => getErrorStatus(error) === 404);
+    });
+
+    test("UC-33: setLoggerLevel sets a logger's level", async () => {
+        const applied = await client.setLoggerLevel("sailpoint.connector.LDAPConnector", "debug");
+        assert.strictEqual(applied, "DEBUG", "the level is normalized to uppercase");
+        assert.strictEqual(server.getLoggerLevel("sailpoint.connector.LDAPConnector"), "DEBUG");
+    });
+
+    test("UC-33: setLoggerLevel rejects an unknown level", async () => {
+        await assert.rejects(() => client.setLoggerLevel("sailpoint.api.Aggregator", "VERBOSE"),
+            (error: unknown) => getErrorStatus(error) === 400);
+    });
+
+    test("UC-33: resetLoggerLevel removes the override", async () => {
+        await client.setLoggerLevel("org.hibernate.SQL", "DEBUG");
+        assert.strictEqual(server.getLoggerLevel("org.hibernate.SQL"), "DEBUG");
+
+        await client.resetLoggerLevel("org.hibernate.SQL");
+        assert.strictEqual(server.getLoggerLevel("org.hibernate.SQL"), undefined);
     });
 
     test("UC-11: opening a virtual document in the editor works end-to-end", async () => {

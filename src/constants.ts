@@ -55,6 +55,7 @@ export const COMMANDS = {
     previewWorkflow: "iiq.preview-workflow",
     tailLogs: "iiq.tail-logs",
     stopTailLogs: "iiq.stop-tail-logs",
+    configureLogging: "iiq.configure-logging",
     saveObject: "iiq.object.save",
     deleteObject: "iiq.object.delete",
     refresh: "iiq.refresh",
