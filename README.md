@@ -159,6 +159,7 @@ _For command prompt (not PowerShell)_:
 ----
 
 mvn install:install-file -Dfile=%IIQ_PATH%\identityiq.jar -DgroupId=sailpoint -DartifactId=iiq -Dversion=%VERSION% -Dpackaging=jar
+mvn install:install-file -Dfile=%IIQ_PATH%\connector-bundle-identityiq.jar -DgroupId=sailpoint -DartifactId=iiq -Dversion=%VERSION% -Dpackaging=jar
 ----
 
 _For PowerShell_:
