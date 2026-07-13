@@ -106,6 +106,8 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         // Applications
         vscode.commands.registerCommand(COMMANDS.testApplicationConnection,
             applicationCommands.testConnection, applicationCommands),
+        vscode.commands.registerCommand(COMMANDS.peekApplicationObjects,
+            applicationCommands.peekObjects, applicationCommands),
 
         // Server logs
         vscode.commands.registerCommand(COMMANDS.tailLogs, logCommands.tailLogs, logCommands),

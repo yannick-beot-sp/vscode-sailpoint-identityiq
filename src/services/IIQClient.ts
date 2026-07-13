@@ -88,6 +88,16 @@ export interface ObjectMetadata {
     etag?: string;
 }
 
+/**
+ * Response of IdentityIQ's native testConnector endpoint (ExtJS grid JSON,
+ * not the plugin's { result, error } envelope).
+ */
+interface TestConnectorResponse {
+    status: string;
+    objects?: Record<string, unknown>[];
+    errors?: string[] | string;
+}
+
 export interface ImportResult {
     /** Names of the objects successfully imported */
     imported: string[];
@@ -118,13 +128,13 @@ export class IIQClient {
         private readonly tenant: TenantInfo,
         private readonly tenantService: TenantService) { }
 
-    private async getAxios(): Promise<AxiosInstance> {
+    private async createAxios(basePath: string): Promise<AxiosInstance> {
         const credentials = await this.tenantService.getCredentials(this.tenant.id);
         if (!credentials) {
             throw new Error(`No credentials found for environment "${this.tenant.name}". Please remove and add the environment again.`);
         }
         return axios.create({
-            baseURL: this.tenant.url.replace(/\/+$/, "") + PLUGIN_REST_BASE_PATH,
+            baseURL: this.tenant.url.replace(/\/+$/, "") + basePath,
             auth: {
                 username: credentials.username,
                 password: credentials.password
@@ -134,6 +144,19 @@ export class IIQClient {
             }),
             timeout: 60_000
         });
+    }
+
+    private async getAxios(): Promise<AxiosInstance> {
+        return this.createAxios(PLUGIN_REST_BASE_PATH);
+    }
+
+    /**
+     * Axios client for IdentityIQ's own REST API ({baseUrl}/rest/...), as
+     * opposed to the companion plugin ({baseUrl}/plugin/rest/iiq-devtools).
+     * Used for native endpoints with no plugin equivalent, e.g. testConnector.
+     */
+    private async getNativeAxios(): Promise<AxiosInstance> {
+        return this.createAxios("/rest");
     }
 
     /**
@@ -343,6 +366,39 @@ export class IIQClient {
                 `/objects/Application/${encodeURIComponent(applicationName)}/test-connection`,
                 {}, { headers: { "Content-Type": "application/json" } });
             return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /**
+     * Previews objects returned by an Application's connector for a given
+     * schema (calls the connector's iterate()/testConfiguration() server-side
+     * through IdentityIQ's own REST API, not the companion plugin: this is
+     * the endpoint backing the "Test Connector" preview grid of the
+     * Application configuration UI).
+     * @param schemaObjectType the `objectType` of the Application's `<Schema>` to preview (e.g. "account", "group")
+     */
+    public async testConnectorObjects(
+        applicationName: string, schemaObjectType: string, options: { start?: number; limit?: number; page?: number } = {}
+    ): Promise<Record<string, unknown>[]> {
+        const client = await this.getNativeAxios();
+        try {
+            const response = await client.get<TestConnectorResponse>(
+                `/applications/${encodeURIComponent(applicationName)}/testConnector/${encodeURIComponent(schemaObjectType)}`, {
+                params: {
+                    _dc: Date.now(),
+                    start: options.start ?? 0,
+                    limit: options.limit ?? 25,
+                    page: options.page ?? 1
+                }
+            });
+            const data = response.data;
+            if (data.status !== "success") {
+                const message = Array.isArray(data.errors) ? data.errors.join("\n") : data.errors;
+                throw new Error(message || `Could not preview "${schemaObjectType}" objects of "${applicationName}" on "${this.tenant.name}".`);
+            }
+            return data.objects ?? [];
         } catch (error) {
             throw improveError(error, this.tenant);
         }

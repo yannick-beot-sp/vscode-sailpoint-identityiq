@@ -198,6 +198,27 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
         assert.ok(!server.has("Rule", "To delete"));
     });
 
+    test("testConnectorObjects returns the preview objects of a schema", async () => {
+        server.seedConnectorObjects("Active Directory", "account", [
+            { sAMAccountName: "jdoe", displayName: "John Doe" },
+            { sAMAccountName: "asmith", displayName: "Ann Smith" }
+        ]);
+        const objects = await client.testConnectorObjects("Active Directory", "account");
+        assert.strictEqual(objects.length, 2);
+        assert.strictEqual(objects[0]["sAMAccountName"], "jdoe");
+    });
+
+    test("testConnectorObjects surfaces a connector failure as an error", async () => {
+        server.connectorFailure = "Could not connect to the directory server";
+        try {
+            await assert.rejects(
+                () => client.testConnectorObjects("Active Directory", "account"),
+                /Could not connect to the directory server/);
+        } finally {
+            server.connectorFailure = undefined;
+        }
+    });
+
     test("UC-11/12: the iiq:// virtual FS reads and writes objects", async () => {
         const uri = buildResourceUri({
             tenantId: tenant.id,

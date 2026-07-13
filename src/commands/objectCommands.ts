@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ALL_OBJECT_TYPES, getOrCreateObjectTypeDefinition, ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
+import { getAllObjectTypeDefinitions, ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
@@ -9,7 +9,7 @@ import { buildResourceUri } from "../utils/UriUtils";
 import { confirm, withProgress } from "../utils/vsCodeHelpers";
 import { buildSailpointBundle, cleanXml } from "../utils/xmlUtils";
 import { IIQTreeDataProvider } from "../views/IIQTreeDataProvider";
-import { ObjectTreeItem, TenantTreeItem } from "../views/IIQTreeItem";
+import { ObjectTreeItem, ObjectTypeTreeItem, TenantTreeItem } from "../views/IIQTreeItem";
 import { QuickPickObjectStep } from "../wizard/quickPickObjectStep";
 import { QuickPickObjectTypeStep } from "../wizard/quickPickObjectTypeStep";
 import { QuickPickTenantStep } from "../wizard/quickPickTenantStep";
@@ -26,7 +26,7 @@ const OBJECTS_PREFIX = "objects:";
  */
 class ExportObjectTypeStep extends QuickPickObjectTypeStep {
     constructor(private readonly tenantService: TenantService) {
-        super({ canPickMany: true });
+        super({ canPickMany: true, objectTypes: getAllObjectTypeDefinitions() });
     }
 
     public override async getSubWizard(wizardContext: WizardContext): Promise<IWizardOptions<WizardContext> | undefined> {
@@ -67,11 +67,7 @@ export class ObjectCommands {
      * mirror of ClassLists.MajorClasses).
      */
     public async openObject(node?: TenantTreeItem): Promise<void> {
-        const definitions = ALL_OBJECT_TYPES
-            .map(getOrCreateObjectTypeDefinition)
-            .map(definition => ({ ...definition, excludeTypes: undefined }))
-            .sort((a, b) => a.objectType.localeCompare(b.objectType));
-        await this.openObjectWizard(node, "Open an IdentityIQ object", definitions);
+        await this.openObjectWizard(node, "Open an IdentityIQ object", getAllObjectTypeDefinitions());
     }
 
     private async openObjectWizard(node: TenantTreeItem | undefined, title: string,
@@ -110,10 +106,15 @@ export class ObjectCommands {
      * Exports one or several objects to XML file(s):
      * environment -> object types (multi) -> objects (multi, per type)
      * -> single file or one file per object -> destination.
+     * Invoked from an object type node, the environment and the object type
+     * are preselected so the wizard starts directly on object selection.
      */
-    public async exportObjects(node?: TenantTreeItem): Promise<void> {
+    public async exportObjects(node?: TenantTreeItem | ObjectTypeTreeItem): Promise<void> {
         const context: WizardContext = {};
-        if (node instanceof TenantTreeItem) {
+        if (node instanceof ObjectTypeTreeItem) {
+            context.tenant = node.tenant;
+            context.objectTypes = [node.definition];
+        } else if (node instanceof TenantTreeItem) {
             context.tenant = node.tenant;
         }
         const result = await runWizard({

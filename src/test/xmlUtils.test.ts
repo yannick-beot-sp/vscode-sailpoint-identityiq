@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { buildSailpointBundle, cleanXml, getObjectInfoFromXml, wrapSourceCdata, XmlCleaningOptions } from "../utils/xmlUtils";
+import { buildSailpointBundle, cleanXml, extractApplicationSchemas, getObjectInfoFromXml, wrapSourceCdata, XmlCleaningOptions } from "../utils/xmlUtils";
 
 const ALL_OPTIONS: XmlCleaningOptions = {
     removeIds: true,
@@ -100,6 +100,35 @@ suite("XML utils Test Suite", () => {
         const withAttr = `<Rule name="My Rule"><Source lang="beanshell">x &lt; y</Source></Rule>`;
         const result = wrapSourceCdata(withAttr);
         assert.ok(result.includes('<Source lang="beanshell"><![CDATA[x < y]]></Source>'));
+    });
+
+    test("extractApplicationSchemas finds the object types of an Application", () => {
+        const application = `<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE Application PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<Application connector="sailpoint.connector.ADLDAPConnector" name="Active Directory">
+  <Schemas>
+    <Schema displayAttribute="sAMAccountName" identityAttribute="distinguishedName" nativeObjectType="User" objectType="account">
+      <AttributeDefinition name="homePhone" type="string"/>
+    </Schema>
+    <Schema displayAttribute="sAMAccountName" hierarchyAttribute="memberOf" nativeObjectType="Group" objectType="group">
+      <AttributeDefinition name="cn" type="string"/>
+    </Schema>
+  </Schemas>
+</Application>`;
+        const schemas = extractApplicationSchemas(application);
+        assert.deepStrictEqual(schemas, [
+            { objectType: "account", nativeObjectType: "User" },
+            { objectType: "group", nativeObjectType: "Group" }
+        ]);
+    });
+
+    test("extractApplicationSchemas returns an empty array when there are no schemas", () => {
+        assert.deepStrictEqual(extractApplicationSchemas(SAMPLE_RULE), []);
+    });
+
+    test("extractApplicationSchemas ignores Schema-like content inside CDATA", () => {
+        const withCdata = `<Application name="X"><Schemas></Schemas><Rule><Source><![CDATA[<Schema objectType="fake"/>]]></Source></Rule></Application>`;
+        assert.deepStrictEqual(extractApplicationSchemas(withCdata), []);
     });
 
     test("wrapSourceCdata dedents escaped Source inherited from deep ancestor nesting", () => {

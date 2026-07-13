@@ -165,6 +165,12 @@
         "icon": "$(plug)"
       },
       {
+        "command": "iiq.application.peek-objects",
+        "title": "Peek objects...",
+        "category": "IIQ",
+        "icon": "$(eye)"
+      },
+      {
         "command": "iiq.preview-workflow",
         "title": "Preview workflow",
         "category": "IIQ",
@@ -424,6 +430,11 @@
           "group": "1_objecttype@3"
         },
         {
+          "command": "iiq.export-objects",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqObjectType-/",
+          "group": "1_objecttype@4"
+        },
+        {
           "command": "iiq.sort-by-name",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObjectType-.*-sorted-by-lastModified(-filtered)?$/",
           "group": "inline@1"
@@ -482,6 +493,11 @@
           "command": "iiq.application.test-connection",
           "when": "view == iiq.view.environments && viewItem == iiqObject-Application",
           "group": "0_run@1"
+        },
+        {
+          "command": "iiq.application.peek-objects",
+          "when": "view == iiq.view.environments && viewItem == iiqObject-Application",
+          "group": "0_run@2"
         },
         {
           "command": "iiq.object.save",
