@@ -40,6 +40,12 @@ export class MockPluginServer {
     /** taskResultId -> remaining "running" status polls */
     private readonly runningTasks = new Map<string, number>();
 
+    // testConnector state (native IdentityIQ REST endpoint, outside the plugin contract)
+    /** `${applicationName}:${schemaObjectType}` -> preview objects */
+    private readonly connectorObjects = new Map<string, Record<string, unknown>[]>();
+    /** When set, the testConnector endpoint answers with this failure instead */
+    public connectorFailure: string | undefined;
+
     // Server log files state (contract of docs/plugin-api.md §6)
     /** Tailable log files, by appender name */
     private readonly logFiles = new Map<string, MockLogFile>();
@@ -97,6 +103,11 @@ export class MockPluginServer {
         return this.objects.get(objectType)?.has(name) ?? false;
     }
 
+    /** Seeds the objects returned by a testConnector preview call */
+    public seedConnectorObjects(applicationName: string, schemaObjectType: string, objects: Record<string, unknown>[]): void {
+        this.connectorObjects.set(`${applicationName}:${schemaObjectType}`, objects);
+    }
+
     private store(objectType: string, name: string, xml: string): void {
         let byName = this.objects.get(objectType);
         if (!byName) {
@@ -137,6 +148,18 @@ export class MockPluginServer {
 
         const url = new URL(req.url ?? "/", "http://localhost");
         this.requests.push({ method: req.method ?? "?", path: url.pathname });
+
+        // GET /identityiq/rest/applications/{name}/testConnector/{schemaObjectType}
+        // Native IdentityIQ REST endpoint (outside the plugin contract).
+        const nativeBase = "/identityiq/rest/applications/";
+        if (req.method === "GET" && url.pathname.startsWith(nativeBase)) {
+            const segments = url.pathname.substring(nativeBase.length).split("/").map(decodeURIComponent);
+            if (segments.length === 3 && segments[1] === "testConnector") {
+                this.testConnector(segments[0], segments[2], res);
+                return;
+            }
+        }
+
         const base = "/identityiq" + PLUGIN_REST_BASE_PATH;
         if (!url.pathname.startsWith(base)) {
             this.json(res, 404, { error: "Unknown path " + url.pathname });
@@ -309,6 +332,20 @@ export class MockPluginServer {
         }
 
         this.json(res, 404, { error: `Unknown endpoint ${req.method} ${url.pathname}` });
+    }
+
+    /** Answers a testConnector preview call with the ExtJS grid JSON shape used by IdentityIQ */
+    private testConnector(applicationName: string, schemaObjectType: string, res: http.ServerResponse): void {
+        if (this.connectorFailure) {
+            this.json(res, 200, { status: "failure", errors: [this.connectorFailure] });
+            return;
+        }
+        const objects = this.connectorObjects.get(`${applicationName}:${schemaObjectType}`);
+        if (!objects) {
+            this.json(res, 200, { status: "failure", errors: [`No schema "${schemaObjectType}" on application "${applicationName}"`] });
+            return;
+        }
+        this.json(res, 200, { status: "success", objects });
     }
 
     /** Implements the tail contract (docs/plugin-api.md §6) on the byte buffer */

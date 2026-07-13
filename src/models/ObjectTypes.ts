@@ -96,6 +96,19 @@ export function getOrCreateObjectTypeDefinition(objectType: string): ObjectTypeD
 }
 
 /**
+ * Definitions for every object type supported by the plugin (ALL_OBJECT_TYPES),
+ * generic (no type-based exclusion, since it isn't the curated tree view list),
+ * sorted alphabetically. Used by pickers offering any object type, such as
+ * "Get object..." and "Export objects...".
+ */
+export function getAllObjectTypeDefinitions(): ObjectTypeDefinition[] {
+    return ALL_OBJECT_TYPES
+        .map(getOrCreateObjectTypeDefinition)
+        .map(definition => ({ ...definition, excludeTypes: undefined }))
+        .sort((a, b) => a.objectType.localeCompare(b.objectType));
+}
+
+/**
  * Summary of an IdentityIQ object, as returned by the list endpoint of the plugin.
  */
 export interface ObjectSummary {

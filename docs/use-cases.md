@@ -38,19 +38,23 @@ src/
 │   ├── objectCommands.ts        # open/export/save/delete objects
 │   ├── ruleCommands.ts          # run a rule and display its result
 │   ├── taskCommands.ts          # run a task, poll its status, preview the TaskResult
+│   ├── applicationCommands.ts   # test connection, peek objects (testConnector)
 │   └── fileCommands.ts          # import/refresh/compare XML files
-└── utils/                       # xmlUtils (CDATA-safe cleaning), UriUtils, config, helpers
+└── utils/                       # xmlUtils (CDATA-safe cleaning, schema parsing), UriUtils, config, helpers
 ```
 
 Key design decisions:
 
-- **Communication**: all IIQ access goes through the companion plugin REST API
-  (see [plugin-api.md](plugin-api.md)), with a generic CRUD interface
+- **Communication**: almost all IIQ access goes through the companion plugin
+  REST API (see [plugin-api.md](plugin-api.md)), with a generic CRUD interface
   `{baseUrl}/plugin/rest/iiq-devtools/objects/{ObjectType}/{nameOrId}` and
   object actions as sub-resources (`.../run`, `.../status`). Responses always
   use the JSON envelope `{ "result": ..., "error": ... }` — a plugin REST
   method cannot return raw XML, so object XML travels as a string in `result`
-  (`toXml()` server-side).
+  (`toXml()` server-side). The one exception is UC-34 (peek objects), which
+  has no plugin equivalent and calls IdentityIQ's own REST API
+  (`{baseUrl}/rest/...`) directly — `IIQClient` exposes a second axios client
+  rooted at that base path for it.
 - **Data-driven object types**: `OBJECT_TYPES` in `src/models/ObjectTypes.ts`
   is the curated registry for the tree view (label, IIQ class name, icon) —
   adding a new object type = adding one line there. `ALL_OBJECT_TYPES` in the
@@ -165,9 +169,14 @@ type-agnostic, so any of these objects can be opened, edited and saved.
 ## 4. Export / import
 
 ### UC-20 — Export objects
-Command `iiq.export-objects` (palette or environment context menu):
-1. environment picker (active preselected),
-2. object type picker (**multi-select**),
+Command `iiq.export-objects` (palette, environment context menu, or an object
+type node's context menu in the tree view):
+1. environment picker (active preselected; skipped when invoked from the tree
+   view, which preselects its environment),
+2. object type picker (**multi-select**, offers **every object type supported
+   by the plugin** — `ALL_OBJECT_TYPES`, same list as UC-14 — not only the
+   curated tree types; skipped when invoked from an object type node, which
+   preselects that single type),
 3. for each selected type, an object picker (**multi-select**),
 4. if several objects are selected: choice between **one file per object**
    (then folder picker; files are written to `<folder>/<ObjectType>/<name>.xml`)
@@ -275,7 +284,33 @@ Commands `iiq.tail-logs` / `iiq.stop-tail-logs`:
   tails and runs the stop command. Stopping keeps the channel content
   readable; nothing is left server-side (the tail is stateless).
 
-## 6. Configuration summary
+## 6. Applications
+
+### UC-33 — Test an application connection
+Command `iiq.application.test-connection` (application context menu — inline
+`$(plug)` icon — or palette with environment/application pickers):
+- calls the connector's `testConfiguration()` server-side
+  (`POST /objects/Application/{name}/test-connection`, companion plugin) and
+  reports the outcome as an information/error message.
+
+### UC-34 — Peek objects of an application
+Command `iiq.application.peek-objects` (application context menu — inline
+`$(eye)` icon — or palette with environment/application pickers):
+1. the Application XML is fetched (`GET /objects/Application/{name}`,
+   companion plugin) and its `<Schemas><Schema objectType="...">` are parsed
+   (`extractApplicationSchemas` in `src/utils/xmlUtils.ts`) to list the object
+   types it defines (e.g. `account`, `group`); a picker is shown when there is
+   more than one, otherwise the single schema is used directly.
+2. a live preview is fetched from **IdentityIQ's own REST API** (not the
+   companion plugin — this reuses the endpoint backing the "Test Connector"
+   grid of the Application configuration UI):
+   `GET {baseUrl}/rest/applications/{name}/testConnector/{objectType}`
+   (`IIQClient.testConnectorObjects`, via a dedicated axios client rooted at
+   `{baseUrl}/rest` instead of the plugin's `{baseUrl}/plugin/rest/iiq-devtools`).
+3. the `objects` array of the response is opened as a read-only preview JSON
+   document (untitled, `showTextDocument(..., { preview: true })`).
+
+## 7. Configuration summary
 
 | Setting | Default | Description |
 |---|---|---|
@@ -285,7 +320,7 @@ Commands `iiq.tail-logs` / `iiq.stop-tail-logs`:
 | `iiq.logs.pollIntervalMs` | `2000` | Poll interval while tailing server logs |
 | `iiq.export.*` | `true` | XML cleaning rules (see UC-21) |
 
-## 7. Command summary
+## 8. Command summary
 
 | Command | Id | Entry points |
 |---|---|---|
@@ -298,7 +333,7 @@ Commands `iiq.tail-logs` / `iiq.stop-tail-logs`:
 | New/rename/remove folder | `iiq.folder.*` | view title, folder menu |
 | Open object | `iiq.open-object` | palette, environment menu |
 | Get object (any type) | `iiq.get-object` | palette, environment menu |
-| Export objects | `iiq.export-objects` | palette, environment menu |
+| Export objects | `iiq.export-objects` | palette, environment menu, object type menu (view) |
 | Import file(s) | `iiq.import-file` / `iiq.import-file-explorer` | palette, editor menu, explorer menu, environment menu |
 | Refresh file from IIQ | `iiq.refresh-file` | editor menu, palette |
 | Compare with IIQ | `iiq.compare-file` | editor menu, palette |
@@ -309,8 +344,10 @@ Commands `iiq.tail-logs` / `iiq.stop-tail-logs`:
 | Save object to file | `iiq.object.save` | object menu |
 | Delete object | `iiq.object.delete` | object menu |
 | Refresh / Load more / Sort by... | `iiq.refresh`, `iiq.load-more`, `iiq.sort-by-*` | view |
+| Test an application connection | `iiq.application.test-connection` | application menu (view), palette |
+| Peek objects of an application | `iiq.application.peek-objects` | application menu (view), palette |
 
-## 8. Roadmap / future work
+## 9. Roadmap / future work
 
 - **BeanShell language server**: completion/diagnostics for Rules, backed by
   the `POST /objects/Rule/{name}/run` sandbox endpoint.
