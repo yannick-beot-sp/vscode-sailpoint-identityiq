@@ -188,6 +188,12 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.configure-logging",
+        "title": "Configure logging...",
+        "category": "IIQ",
+        "icon": "$(gear)"
+      },
+      {
         "command": "iiq.object.save",
         "title": "Save to file...",
         "category": "IIQ"
@@ -373,6 +379,11 @@
           "command": "iiq.tail-logs",
           "when": "view == iiq.view.environments && viewItem == iiqTenant",
           "group": "2_actions@6"
+        },
+        {
+          "command": "iiq.configure-logging",
+          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "group": "2_actions@7"
         },
         {
           "command": "iiq.tenant.rename",
