@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { registerBeanshellLanguageSupport } from "./beanshell";
+import { ApplicationCommands } from "./commands/applicationCommands";
 import { FileCommands } from "./commands/fileCommands";
 import { FolderCommands } from "./commands/folderCommands";
 import { LogCommands } from "./commands/logCommands";
@@ -52,6 +53,7 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
     const fileCommands = new FileCommands(tenantService);
     const ruleCommands = new RuleCommands(tenantService);
     const taskCommands = new TaskCommands(tenantService);
+    const applicationCommands = new ApplicationCommands(tenantService);
     const logCommands = new LogCommands(tenantService);
 
     context.subscriptions.push(
@@ -100,6 +102,10 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         vscode.commands.registerCommand(COMMANDS.addRule, ruleCommands.addRule, ruleCommands),
         vscode.commands.registerCommand(COMMANDS.runRule, ruleCommands.runRule, ruleCommands),
         vscode.commands.registerCommand(COMMANDS.runTask, taskCommands.runTask, taskCommands),
+
+        // Applications
+        vscode.commands.registerCommand(COMMANDS.testApplicationConnection,
+            applicationCommands.testConnection, applicationCommands),
 
         // Server logs
         vscode.commands.registerCommand(COMMANDS.tailLogs, logCommands.tailLogs, logCommands),

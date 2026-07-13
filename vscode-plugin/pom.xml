@@ -26,6 +26,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>sailpoint</groupId>
+            <artifactId>connector-bundle-identityiq</artifactId>
+            <version>8.5</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>jakarta.ws.rs</groupId>
             <artifactId>jakarta.ws.rs-api</artifactId>
             <version>2.1.6</version>

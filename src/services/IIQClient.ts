@@ -331,6 +331,23 @@ export class IIQClient {
         }
     }
 
+    /**
+     * Tests the connection of an Application (calls the connector's
+     * testConfiguration() server-side). Returns a human-readable success
+     * message; connection failures are thrown as errors.
+     */
+    public async testApplicationConnection(applicationName: string): Promise<string> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.post<Envelope<string>>(
+                `/objects/Application/${encodeURIComponent(applicationName)}/test-connection`,
+                {}, { headers: { "Content-Type": "application/json" } });
+            return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
     /** Deletes an object by name or id */
     public async deleteObject(objectType: string, nameOrId: string): Promise<void> {
         const client = await this.getAxios();

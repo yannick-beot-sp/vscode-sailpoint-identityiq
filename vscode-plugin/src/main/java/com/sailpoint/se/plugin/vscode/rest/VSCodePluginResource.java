@@ -54,8 +54,13 @@ import com.sailpoint.se.plugin.vscode.dto.TaskStatusDto;
 
 import lombok.extern.log4j.Log4j2;
 import sailpoint.Version;
+import sailpoint.api.ObjectUtil;
 import sailpoint.api.TaskManager;
 import sailpoint.api.Terminator;
+import sailpoint.connector.Connector;
+import sailpoint.connector.ConnectorException;
+import sailpoint.connector.ConnectorFactory;
+import sailpoint.object.Application;
 import sailpoint.object.Attributes;
 import sailpoint.object.AuditEvent;
 import sailpoint.object.ClassLists;
@@ -485,7 +490,42 @@ public class VSCodePluginResource extends BasePluginResource {
     }
 
     ////////////////////////////////////////////////////////////////////////
-    // 6. Server log files
+    // 6. Application connection test
+    ////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Tests the connection of an Application: instantiates its Connector and
+     * calls testConfiguration(), the same call the "Test Connection" button
+     * of the Application configuration page makes. Connector failures
+     * (invalid host, bad credentials...) are returned as 400 with the
+     * exception message; anything else (unknown application) is 404.
+     */
+    @POST
+    @Path("objects/Application/{nameOrId}/test-connection")
+    @RequiredRight(ACCESS_RIGHT)
+    public Map<String, Object> testApplicationConnection(@PathParam("nameOrId") String nameOrId)
+            throws GeneralException {
+        LOG.debug("testApplicationConnection(nameOrId={})", nameOrId);
+        Application application = find(Application.class, nameOrId);
+        if (application == null) {
+            throw error(Response.Status.NOT_FOUND, "Application \"" + nameOrId + "\" not found");
+        }
+        LOG.info("testApplicationConnection(name={})", application.getName());
+        audit("testApplicationConnection", application.getName());
+
+        try {
+            Connector connector = ConnectorFactory.getConnector(application, null);
+            ObjectUtil.getLocalApplication(connector);
+            connector.testConfiguration();
+        } catch (GeneralException | ConnectorException e) {
+            LOG.error("Connection test failed for Application \"{}\"", application.getName(), e);
+            throw error(Response.Status.BAD_REQUEST, e.getLocalizedMessage());
+        }
+        return ok("Connection to \"" + application.getName() + "\" succeeded.");
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // 7. Server log files
     ////////////////////////////////////////////////////////////////////////
 
     /**

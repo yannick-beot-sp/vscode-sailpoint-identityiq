@@ -159,6 +159,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "iiq.application.test-connection",
+        "title": "Test connection...",
+        "category": "IIQ",
+        "icon": "$(plug)"
+      },
+      {
         "command": "iiq.preview-workflow",
         "title": "Preview workflow",
         "category": "IIQ",
@@ -465,6 +471,16 @@
         {
           "command": "iiq.run-task",
           "when": "view == iiq.view.environments && viewItem == iiqObject-TaskDefinition",
+          "group": "0_run@1"
+        },
+        {
+          "command": "iiq.application.test-connection",
+          "when": "view == iiq.view.environments && viewItem == iiqObject-Application",
+          "group": "inline"
+        },
+        {
+          "command": "iiq.application.test-connection",
+          "when": "view == iiq.view.environments && viewItem == iiqObject-Application",
           "group": "0_run@1"
         },
         {

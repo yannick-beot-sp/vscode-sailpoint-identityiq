@@ -98,6 +98,12 @@ GET {{url}}/objects/TaskResult/{{runTask.result}}
 DELETE {{url}}/objects/Rule/VSCode-Test-Rule
 ...defaultHeaders
 
+### Test an application's connection -> { "result": "Connection to \"...\" succeeded." }
+
+POST {{url}}/objects/Application/Active Directory/test-connection
+...defaultHeaders
+Content-Type: application/json
+
 ### List the tailable log files (file-backed Log4j2 appenders)
 # @name logFiles
 

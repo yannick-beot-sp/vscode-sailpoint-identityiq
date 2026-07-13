@@ -356,7 +356,37 @@ interface (`GET /objects/TaskResult/{nameOrId}` — a `TaskResult` is a regular
 `SailPointObject`, returned as its `toXml()` string), which the extension uses
 to display the result preview.
 
-### 6. Server log files
+### 6. Application connection test
+
+#### `POST /objects/Application/{nameOrId}/test-connection`
+
+Tests the connection of an `Application`: instantiates its `Connector` and
+calls `testConfiguration()`, the same call made by the "Test Connection"
+button of the Application configuration page. Used by the "Test connection"
+command on Applications.
+
+Implementation notes:
+- resolve the `Application` by id then by name (same rules as the generic
+  `GET`), `404` if unknown;
+- `Connector connector = ConnectorFactory.getConnector(application, null);`
+  then `connector.testConfiguration()`. `ConnectorFactory.getConnector` throws
+  `GeneralException`, `testConfiguration()` throws `ConnectorException`
+  (**not** a subclass of `GeneralException` — both must be caught);
+- connector failures (invalid host, bad credentials, unreachable resource...)
+  return `400` with `{ "error": "<exception message>" }`;
+- like rule/task execution, audit (`AuditEvent`) and log at `INFO` every test.
+
+Response `200` — `result` is a human-readable success message:
+```json
+{ "result": "Connection to \"Active Directory\" succeeded." }
+```
+
+Response `400` on connector failure:
+```json
+{ "error": "Could not connect to host ldap.example.com:389" }
+```
+
+### 7. Server log files
 
 Tails the server's log files into VS Code ("Tail server logs..." command),
 `tail -f` style: the extension polls a **byte-offset cursor** on a
