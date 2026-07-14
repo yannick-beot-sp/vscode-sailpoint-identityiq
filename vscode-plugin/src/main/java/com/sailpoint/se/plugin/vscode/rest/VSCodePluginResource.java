@@ -220,6 +220,13 @@ public class VSCodePluginResource extends BasePluginResource {
             countOptions.addFilter(filter);
             queryOptions.addFilter(filter);
         }
+        if (TaskDefinition.class.equals(clazz)) {
+            // Templates are blueprints used to create tasks, not runnable
+            // tasks themselves: never show them in the Tasks list.
+            Filter filter = Filter.eq("template", false);
+            countOptions.addFilter(filter);
+            queryOptions.addFilter(filter);
+        }
         queryOptions.setFirstRow(Math.max(0, start));
         queryOptions.setResultLimit(Math.max(1, limit));
         queryOptions.addOrdering(sortBy, !"desc".equalsIgnoreCase(sortDir));

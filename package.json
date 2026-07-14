@@ -503,11 +503,6 @@
         {
           "command": "iiq.application.test-connection",
           "when": "view == iiq.view.environments && viewItem == iiqObject-Application",
-          "group": "inline"
-        },
-        {
-          "command": "iiq.application.test-connection",
-          "when": "view == iiq.view.environments && viewItem == iiqObject-Application",
           "group": "0_run@1"
         },
         {
