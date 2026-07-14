@@ -88,6 +88,15 @@ envelope).
   (`EXPECTED_API_VERSION` in `src/constants.ts`, currently `1`) and warns the
   user on mismatch. Increment `apiVersion` on any breaking change of this contract.
 
+- **Plugin versioning**: `pluginVersion` in the ping response is purely
+  informational (never compared by the extension). It is the `<Plugin
+  version="...">` attribute of `manifest.xml`, itself filled from
+  `${project.version}` (`vscode-plugin/pom.xml`) when Maven builds the zip.
+  Bump `pom.xml`'s `<version>` by hand before packaging a release of the
+  plugin, following semver: patch for internal fixes with no visible change,
+  minor for backward-compatible additions, major together with an
+  `apiVersion` bump when the REST contract breaks.
+
 ## Endpoints
 
 ### 1. System

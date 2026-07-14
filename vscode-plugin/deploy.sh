@@ -17,7 +17,8 @@
 #                          the running webapp to pick up a console install)
 #   -c, --container NAME   target container (default: first one whose image
 #                          matches iiq:*)
-#   -z, --zip PATH         plugin zip (default: target/vscode-plugin-1.0-bin.zip)
+#   -z, --zip PATH         plugin zip (default: most recently built
+#                          target/vscode-plugin-*-bin.zip)
 #   -h, --help             this help
 #
 # Environment (for the final ping check):
@@ -39,7 +40,7 @@ PING_URL="$IIQ_URL/plugin/rest/iiq-devtools/system/ping"
 BUILD=false
 RESTART=false
 CONTAINER=""
-ZIP="$SCRIPT_DIR/target/vscode-plugin-1.0-bin.zip"
+ZIP=""
 
 usage() { sed -n '2,/^$/s/^# \{0,1\}//p' "${BASH_SOURCE[0]}"; }
 
@@ -76,7 +77,11 @@ if $BUILD; then
   (cd "$SCRIPT_DIR" && mvn -q package)
 fi
 
-[[ -f "$ZIP" ]] || fail "Plugin zip not found: $ZIP (build it with 'mvn package' or pass --build)"
+if [[ -z "$ZIP" ]]; then
+  ZIP="$(ls -t "$SCRIPT_DIR"/target/vscode-plugin-*-bin.zip 2>/dev/null | head -1)"
+fi
+
+[[ -n "$ZIP" && -f "$ZIP" ]] || fail "Plugin zip not found in target/ (build it with 'mvn package' or pass --build), or pass --zip PATH"
 
 # --- Locate the container ----------------------------------------------------
 

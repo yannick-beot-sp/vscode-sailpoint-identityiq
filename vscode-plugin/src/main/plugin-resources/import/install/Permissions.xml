@@ -8,7 +8,7 @@
     <Capability displayName="iiqDevToolsAccess" name="iiqDevToolsAccess">
         <Description>Allow access to VSCode Plugin REST Service</Description>
         <RightRefs>
-            <Reference class="sailpoint.object.SPRight" name="iiqDevToolsAccess"/>
+            <Reference class="sailpoint.object.SPRight" name="iiqDevToolsAccess" />
         </RightRefs>
     </Capability>
 

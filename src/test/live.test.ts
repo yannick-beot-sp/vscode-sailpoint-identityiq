@@ -143,16 +143,23 @@ suite("Live IdentityIQ Test Suite (localhost)", function () {
         for (const file of files) {
             assert.ok(file.key && file.fileName && file.path);
         }
-        const file = files.find(f => f.exists);
-        if (!file) {
+        // Which appender the rule's logger routes to depends on the live
+        // Log4j2 configuration (root vs. dedicated, non-additive loggers):
+        // poll every existing file rather than guessing the "right" one.
+        const candidates = files.filter(f => f.exists);
+        if (candidates.length === 0) {
             // No active file appender on this instance (console-only logging)
             this.skip();
         }
 
-        // First call: trailing window, cursor at the end of the file
-        const initial = await client.getLogChunk(file!.key);
-        assert.ok(initial.nextOffset <= initial.fileSize);
-        assert.strictEqual(initial.rotated, false);
+        // First call per file: trailing window, cursor at the end of the file
+        const offsets = new Map<string, number>();
+        for (const file of candidates) {
+            const initial = await client.getLogChunk(file.key);
+            assert.ok(initial.nextOffset <= initial.fileSize);
+            assert.strictEqual(initial.rotated, false);
+            offsets.set(file.key, initial.nextOffset);
+        }
 
         const marker = `vscode log tail marker ${Date.now()}`;
         const imported = await client.importXml(logTestRuleXml(marker));
@@ -162,18 +169,22 @@ suite("Live IdentityIQ Test Suite (localhost)", function () {
 
             // The line is written synchronously; a few polls leave room for
             // buffered appenders and slow instances
-            let offset = initial.nextOffset;
             let found = false;
             for (let attempt = 0; attempt < 10 && !found; attempt++) {
-                const chunk = await client.getLogChunk(file!.key, offset);
-                assert.ok(chunk.nextOffset >= 0, "the cursor is always valid");
-                offset = chunk.nextOffset;
-                found = chunk.content.includes(marker);
+                for (const file of candidates) {
+                    const chunk = await client.getLogChunk(file.key, offsets.get(file.key));
+                    assert.ok(chunk.nextOffset >= 0, "the cursor is always valid");
+                    offsets.set(file.key, chunk.nextOffset);
+                    if (chunk.content.includes(marker)) {
+                        found = true;
+                        break;
+                    }
+                }
                 if (!found) {
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
             }
-            assert.ok(found, "the marker logged by the rule must appear in the tailed file");
+            assert.ok(found, "the marker logged by the rule must appear in one of the tailed files");
         } finally {
             await client.deleteObject("Rule", LOG_TEST_RULE_NAME);
         }
