@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { buildSailpointBundle, cleanXml, extractApplicationSchemas, getObjectInfoFromXml, wrapSourceCdata, XmlCleaningOptions } from "../utils/xmlUtils";
+import { buildSailpointBundle, cleanXml, extractApplicationSchemas, getObjectInfoFromXml, renameXmlObject, wrapSourceCdata, XmlCleaningOptions } from "../utils/xmlUtils";
 
 const ALL_OPTIONS: XmlCleaningOptions = {
     removeIds: true,
@@ -150,5 +150,41 @@ suite("XML utils Test Suite", () => {
         assert.ok(result.includes(
             '<Source><![CDATA[\nSystem.out.println("hi");\nif (a < b) {\n  return wfcontext.getStepName();\n}\n]]></Source>'),
             `unexpected result:\n${result}`);
+    });
+
+    test("renameXmlObject replaces the name of the root object", () => {
+        const result = renameXmlObject(SAMPLE_RULE, "My Rule - Copy");
+        assert.ok(result.includes('name="My Rule - Copy"'));
+        assert.ok(!result.includes('name="My Rule"'));
+        // Nested Reference name must be left untouched
+        assert.ok(result.includes('name="Library Rule"'));
+    });
+
+    test("renameXmlObject preserves CDATA sections verbatim", () => {
+        const result = renameXmlObject(SAMPLE_RULE, "My Rule - Copy");
+        assert.ok(result.includes('id="deadbeefdeadbeefdeadbeefdeadbeef"'));
+        assert.ok(result.includes('String created = "created=\\"123\\"";'));
+    });
+
+    test("renameXmlObject encodes XML entities in the new name", () => {
+        const result = renameXmlObject(SAMPLE_RULE, "Rule <A & B>");
+        assert.ok(result.includes('name="Rule &lt;A &amp; B&gt;"'));
+    });
+
+    test("renameXmlObject renames the first object of a sailpoint bundle", () => {
+        const bundle = `<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE sailpoint PUBLIC "sailpoint.dtd" "sailpoint.dtd">
+<sailpoint>
+  <Workflow name="My Workflow"/>
+  <Rule name="Another Rule"/>
+</sailpoint>`;
+        const result = renameXmlObject(bundle, "My Workflow - Copy");
+        assert.ok(result.includes('<Workflow name="My Workflow - Copy"/>'));
+        assert.ok(result.includes('name="Another Rule"'));
+    });
+
+    test("renameXmlObject adds a name attribute when the root has none", () => {
+        const result = renameXmlObject('<Rule language="beanshell"/>', "New Rule");
+        assert.ok(result.includes('<Rule name="New Rule" language="beanshell"/>'));
     });
 });
