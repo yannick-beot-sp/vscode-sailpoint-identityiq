@@ -490,6 +490,10 @@ export class MockPluginServer {
                 return !match || !excludeTypes.includes(match[1]);
             });
         }
+        if (objectType === "TaskDefinition") {
+            // Same contract as the plugin: templates are never listed as tasks
+            all = all.filter(stored => !/\stemplate="true"/.test(stored.xml));
+        }
         all.sort((a, b) => sortBy === "modified"
             ? a.modified.localeCompare(b.modified)
             : a.name.localeCompare(b.name));

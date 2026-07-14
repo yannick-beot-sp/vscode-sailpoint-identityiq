@@ -113,6 +113,18 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
         assert.ok(all.objects.some(o => o.name === "A Report"));
     });
 
+    test("UC-10: templates are never listed among tasks", async () => {
+        server.seed("TaskDefinition", "Plain Task");
+        server.seed("TaskDefinition", "Account Aggregation",
+            '<TaskDefinition name="Account Aggregation" template="true"/>');
+
+        const result = await client.listObjects("TaskDefinition");
+        const names = result.objects.map(o => o.name);
+        assert.ok(!names.includes("Account Aggregation"), `templates must be excluded, got: ${names}`);
+        assert.ok(names.includes("Plain Task"));
+        assert.strictEqual(result.count, names.length);
+    });
+
     test("UC-11: getObject returns the XML representation", async () => {
         const xml = await client.getObject("Rule", "Rule 1");
         assert.ok(xml.includes('<Rule name="Rule 1"'));

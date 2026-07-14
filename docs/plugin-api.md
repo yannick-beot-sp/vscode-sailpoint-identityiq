@@ -153,6 +153,11 @@ with the same filters as the search. `excludeTypes` values are converted to the
 enum of the `type` property when there is one (`TaskDefinition`, `Rule`...), and
 objects with a **null** type are kept (a bare `NOT (type IN ...)` would drop them).
 
+For `TaskDefinition`, an unconditional `template = false` filter is always
+applied (not exposed as a query parameter): templates (`template="true"` in the
+XML) are blueprints used to create tasks, not runnable tasks themselves, so
+they are never returned by this endpoint.
+
 Response `200` — `result` is the array of object summaries, `count` is the
 total regardless of pagination:
 ```json
