@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE Plugin PUBLIC "sailpoint.dtd" "sailpoint.dtd">
-<Plugin certificationLevel="None" displayName="IIQ DevTools for VS Code" minSystemVersion="8.0" name="vscodePlugin" version="1.0">
+<Plugin certificationLevel="None" displayName="IIQ DevTools for VS Code" minSystemVersion="8.0" name="vscodePlugin" version="${project.version}">
   <Attributes>
     <Map>
       <entry key="minUpgradableVersion" value="1.0" />

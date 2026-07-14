@@ -15,7 +15,8 @@ README, section *Install IdentityIQ libraries*), then:
 mvn package
 ```
 
-The installable plugin zip is produced in `target/vscode-plugin-1.0-bin.zip`.
+The installable plugin zip is produced in `target/vscode-plugin-<version>-bin.zip`
+(`<version>` is the plugin's own version, set in `pom.xml`, e.g. `1.0.0`).
 
 ## Install
 
@@ -23,7 +24,7 @@ Install the zip like any IIQ plugin: *gear icon > Plugins > New*, or:
 
 ```
 iiq console
-> plugin install target/vscode-plugin-1.0-bin.zip
+> plugin install target/vscode-plugin-<version>-bin.zip
 ```
 
 ## Deploy to the local docker environment
