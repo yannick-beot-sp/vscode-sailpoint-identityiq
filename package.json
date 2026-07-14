@@ -199,6 +199,11 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.object.clone",
+        "title": "Clone object...",
+        "category": "IIQ"
+      },
+      {
         "command": "iiq.object.delete",
         "title": "Delete object...",
         "category": "IIQ"
@@ -516,9 +521,14 @@
           "group": "1_object@1"
         },
         {
-          "command": "iiq.object.delete",
+          "command": "iiq.object.clone",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
           "group": "1_object@2"
+        },
+        {
+          "command": "iiq.object.delete",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
+          "group": "1_object@3"
         }
       ],
       "editor/context": [

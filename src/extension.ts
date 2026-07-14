@@ -92,6 +92,7 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         vscode.commands.registerCommand(COMMANDS.openObject, objectCommands.openObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.exportObjects, objectCommands.exportObjects, objectCommands),
         vscode.commands.registerCommand(COMMANDS.saveObject, objectCommands.saveObject, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.cloneObject, objectCommands.cloneObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.deleteObject, objectCommands.deleteObject, objectCommands),
 
         // Files

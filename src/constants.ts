@@ -57,6 +57,7 @@ export const COMMANDS = {
     stopTailLogs: "iiq.stop-tail-logs",
     configureLogging: "iiq.configure-logging",
     saveObject: "iiq.object.save",
+    cloneObject: "iiq.object.clone",
     deleteObject: "iiq.object.delete",
     refresh: "iiq.refresh",
     refreshNode: "iiq.refresh-node",

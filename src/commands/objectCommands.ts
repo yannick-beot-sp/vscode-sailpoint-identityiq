@@ -4,10 +4,10 @@ import { TenantInfo } from "../models/TenantInfo";
 import { IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
 import { getXmlCleaningOptions } from "../utils/configurationUtils";
-import { normalizeAsFilename } from "../utils/stringUtils";
+import { isEmpty, normalizeAsFilename } from "../utils/stringUtils";
 import { buildResourceUri } from "../utils/UriUtils";
 import { confirm, withProgress } from "../utils/vsCodeHelpers";
-import { buildSailpointBundle, cleanXml } from "../utils/xmlUtils";
+import { buildSailpointBundle, cleanXml, renameXmlObject } from "../utils/xmlUtils";
 import { IIQTreeDataProvider } from "../views/IIQTreeDataProvider";
 import { ObjectTreeItem, ObjectTypeTreeItem, TenantTreeItem } from "../views/IIQTreeItem";
 import { QuickPickObjectStep } from "../wizard/quickPickObjectStep";
@@ -162,6 +162,71 @@ export class ObjectCommands {
     /** Saves a single object from the tree view to a local file */
     public async saveObject(node: ObjectTreeItem): Promise<void> {
         await this.exportToSingleFile(node.tenant, [{ definition: node.definition, object: node.object }]);
+    }
+
+    /**
+     * Clones an object under a new name: environment -> object type -> object
+     * (skipped when invoked from an object node in the tree view) -> new name.
+     * The object's XML is fetched, cleaned like an export (ids, timestamps...
+     * removed) and renamed, then re-imported as a brand new object.
+     */
+    public async cloneObject(node?: ObjectTreeItem): Promise<void> {
+        let tenant: TenantInfo;
+        let definition: ObjectTypeDefinition;
+        let object: ObjectSummary;
+
+        if (node instanceof ObjectTreeItem) {
+            tenant = node.tenant;
+            definition = node.definition;
+            object = node.object;
+        } else {
+            const result = await runWizard({
+                title: "Clone an IdentityIQ object",
+                promptSteps: [
+                    new QuickPickTenantStep({ tenantService: this.tenantService }),
+                    new QuickPickObjectTypeStep({ objectTypes: getAllObjectTypeDefinitions() }),
+                    new QuickPickObjectStep({
+                        tenantService: this.tenantService,
+                        getObjectType: (c) => c.objectType as ObjectTypeDefinition
+                    })
+                ]
+            }, {});
+            if (!result) {
+                return;
+            }
+            tenant = result.tenant as TenantInfo;
+            definition = result.objectType as ObjectTypeDefinition;
+            object = result.object as ObjectSummary;
+        }
+
+        const newName = await vscode.window.showInputBox({
+            title: "Clone an IdentityIQ object",
+            prompt: `Enter the name of the new ${definition.objectType}`,
+            value: `${object.name} - Copy`,
+            ignoreFocusOut: true,
+            validateInput: (value) => isEmpty(value) ? "The name cannot be empty" : ""
+        });
+        if (newName === undefined) {
+            return;
+        }
+        const clonedName = newName.trim();
+
+        try {
+            const client = new IIQClient(tenant, this.tenantService);
+            await withProgress(`Cloning ${object.name}...`, async () => {
+                const xml = await client.getObject(definition.objectType, object.name);
+                const cleaned = cleanXml(xml, getXmlCleaningOptions());
+                const cloned = renameXmlObject(cleaned, clonedName);
+                await client.importXml(cloned);
+            });
+            vscode.window.showInformationMessage(
+                `${definition.objectType} "${clonedName}" created from "${object.name}".`);
+            if (node instanceof ObjectTreeItem) {
+                this.treeDataProvider.refresh();
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+        }
     }
 
     /** Deletes an object from the tree view, after confirmation */
