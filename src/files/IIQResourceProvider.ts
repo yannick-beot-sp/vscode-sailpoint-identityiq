@@ -15,7 +15,7 @@ import { parseResourceUri } from "../utils/UriUtils";
 /**
  * Virtual file system provider for the `iiq://` scheme.
  *
- * URIs have the form `iiq://<tenantId>/<tenant name>/<ObjectType>/<name>.xml`
+ * URIs have the form `iiq://<tenantId>/<tenant name>/<ObjectType>/<id>/<name>.xml`
  * (cf. UriUtils). Reading fetches the XML representation of the object from
  * the environment; saving imports it back, providing transparent live edit
  * of IdentityIQ objects.
@@ -36,14 +36,14 @@ export class IIQResourceProvider implements FileSystemProvider {
         // Ancestors of a resource (tenant, object type) are virtual directories.
         // VS Code stats them before writing a file (parent existence check).
         const segments = uri.path.split("/").filter(s => s.length > 0);
-        if (segments.length < 3) {
+        if (segments.length < 3 || (segments.length === 3 && !segments[2].toLowerCase().endsWith(".xml"))) {
             return { type: FileType.Directory, ctime: 0, mtime: 0, size: 0 };
         }
         // stat is called frequently by VS Code (editor focus, before saves...):
         // use a lightweight HEAD request instead of transferring the whole XML.
         // The real mtime lets VS Code detect that the object changed remotely.
         const parts = parseResourceUri(uri);
-        const metadata = await this.getClient(uri).getObjectMetadata(parts.objectType, parts.objectName);
+        const metadata = await this.getClient(uri).getObjectMetadata(parts.objectType, parts.objectId);
         if (metadata === undefined) {
             throw vscode.FileSystemError.FileNotFound(uri);
         }
@@ -72,7 +72,7 @@ export class IIQResourceProvider implements FileSystemProvider {
     async delete(uri: Uri): Promise<void> {
         const parts = parseResourceUri(uri);
         const client = this.getClient(uri);
-        await client.deleteObject(parts.objectType, parts.objectName);
+        await client.deleteObject(parts.objectType, parts.objectId);
         this._emitter.fire([{ type: vscode.FileChangeType.Deleted, uri }]);
     }
 
@@ -97,7 +97,7 @@ export class IIQResourceProvider implements FileSystemProvider {
     private async lookupResource(uri: Uri): Promise<string> {
         const parts = parseResourceUri(uri);
         const client = this.getClient(uri);
-        const data = await client.getObjectIfExists(parts.objectType, parts.objectName);
+        const data = await client.getObjectIfExists(parts.objectType, parts.objectId);
         if (data === undefined) {
             throw vscode.FileSystemError.FileNotFound(uri);
         }
@@ -129,6 +129,6 @@ export class IIQRemoteContentProvider implements vscode.TextDocumentContentProvi
             throw new Error(`Unknown environment for ${uri.toString()}`);
         }
         const client = new IIQClient(tenant, this.tenantService);
-        return await client.getObject(parts.objectType, parts.objectName);
+        return await client.getObject(parts.objectType, parts.objectId);
     }
 }

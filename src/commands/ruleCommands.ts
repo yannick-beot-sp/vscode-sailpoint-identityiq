@@ -141,10 +141,17 @@ export class RuleCommands {
         const ruleXml = this.generateRuleXml(ruleName, ruleType);
 
         try {
+            const client = new IIQClient(tenant, this.tenantService);
             await withProgress(`Creating rule "${ruleName}" on ${tenant.name}...`,
-                () => new IIQClient(tenant, this.tenantService).importXml(ruleXml));
+                () => client.importXml(ruleXml));
 
-            const uri = this.buildRuleUri(tenant, ruleName);
+            const created = (await client.listObjects("Rule", { query: ruleName }))
+                .objects.find(o => o.name === ruleName);
+            if (!created) {
+                throw new Error(`Rule "${ruleName}" was imported but could not be found.`);
+            }
+
+            const uri = this.buildRuleUri(tenant, created.id, created.name);
             const doc = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(doc);
             vscode.window.showInformationMessage(`Rule "${ruleName}" created successfully.`);
@@ -370,11 +377,12 @@ export class RuleCommands {
         return signatures[type];
     }
 
-    private buildRuleUri(tenant: TenantInfo, ruleName: string): vscode.Uri {
+    private buildRuleUri(tenant: TenantInfo, ruleId: string, ruleName: string): vscode.Uri {
         return buildResourceUri({
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "Rule",
+            objectId: ruleId,
             objectName: ruleName
         });
     }

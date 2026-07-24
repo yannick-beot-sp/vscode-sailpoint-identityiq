@@ -121,11 +121,15 @@ suite("Live IdentityIQ Test Suite (localhost)", function () {
     });
 
     test("UC-11/12: the rule opens through the iiq:// virtual FS", async () => {
+        const rule = (await client.listObjects("Rule", { query: TEST_RULE_NAME }))
+            .objects.find(o => o.name === TEST_RULE_NAME);
+        assert.ok(rule, `rule "${TEST_RULE_NAME}" must be listed`);
         const uri = buildResourceUri({
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "Rule",
-            objectName: TEST_RULE_NAME
+            objectId: rule!.id,
+            objectName: rule!.name
         });
         const document = await vscode.workspace.openTextDocument(uri);
         assert.ok(document.getText().includes(`name="${TEST_RULE_NAME}"`));

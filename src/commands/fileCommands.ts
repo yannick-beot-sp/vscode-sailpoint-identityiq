@@ -149,6 +149,7 @@ export class FileCommands {
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: objectInfo.objectType,
+            objectId: objectInfo.name,
             objectName: objectInfo.name
         });
         await vscode.commands.executeCommand("vscode.diff",

@@ -122,6 +122,7 @@ export class TaskCommands {
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "TaskResult",
+            objectId: status.id ?? status.name,
             objectName: status.name ?? status.id
         });
         const document = await vscode.workspace.openTextDocument(uri);

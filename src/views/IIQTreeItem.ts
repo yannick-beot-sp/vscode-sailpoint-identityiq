@@ -78,6 +78,7 @@ export class ObjectTreeItem extends BaseTreeItem {
             tenantId: this.tenant.id,
             tenantName: this.tenant.name,
             objectType: this.definition.objectType,
+            objectId: this.object.id,
             objectName: this.object.name
         });
     }
