@@ -97,6 +97,7 @@ export class ObjectCommands {
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: definition.objectType,
+            objectId: object.id,
             objectName: object.name
         });
         await vscode.window.showTextDocument(uri, { preview: true });

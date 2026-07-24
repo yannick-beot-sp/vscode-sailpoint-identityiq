@@ -23,6 +23,13 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
     let tenant: TenantInfo;
     let client: IIQClient;
 
+    async function findObjectId(objectType: string, name: string): Promise<string> {
+        const page = await client.listObjects(objectType);
+        const found = page.objects.find(o => o.name === name);
+        assert.ok(found, `${objectType} "${name}" not found`);
+        return found!.id;
+    }
+
     suiteSetup(async () => {
         tenantService = (await getExtensionApi()).tenantService;
         server = new MockPluginServer("spadmin", "admin");
@@ -142,10 +149,12 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
     });
 
     test("UC-12: stat through the FS uses HEAD, not GET", async () => {
+        const ruleId = await findObjectId("Rule", "Rule 2");
         const uri = buildResourceUri({
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "Rule",
+            objectId: ruleId,
             objectName: "Rule 2"
         });
         server.requests.length = 0;
@@ -154,7 +163,7 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
         assert.ok(stat.size > 0);
         assert.ok(stat.mtime > 0, "mtime must come from Last-Modified for remote change detection");
 
-        const objectRequests = server.requests.filter(r => r.path.endsWith("/Rule%202"));
+        const objectRequests = server.requests.filter(r => r.path.endsWith(`/${encodeURIComponent(ruleId)}`));
         assert.ok(objectRequests.length > 0);
         assert.ok(objectRequests.every(r => r.method === "HEAD"),
             `stat must not transfer the object body, got: ${JSON.stringify(objectRequests)}`);
@@ -232,10 +241,12 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
     });
 
     test("UC-11/12: the iiq:// virtual FS reads and writes objects", async () => {
+        const ruleId = await findObjectId("Rule", "Rule 1");
         const uri = buildResourceUri({
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "Rule",
+            objectId: ruleId,
             objectName: "Rule 1"
         });
 
@@ -250,11 +261,32 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
         assert.ok(reread.includes('return "updated";'));
     });
 
+    test("UC-12: id-based URI stays valid after the object name changes in a save", async () => {
+        const ruleId = await findObjectId("Rule", "Rule 3");
+        const idUri = buildResourceUri({
+            tenantId: tenant.id,
+            tenantName: tenant.name,
+            objectType: "Rule",
+            objectId: ruleId,
+            objectName: "Rule 3"
+        });
+
+        const renamed = '<Rule name="Rule 3 Renamed" language="beanshell"><Source><![CDATA[return "renamed";]]></Source></Rule>';
+        await vscode.workspace.fs.writeFile(idUri, Buffer.from(renamed, "utf8"));
+
+        // With an id in the path, stat/read keep working after a save that renames
+        // the object in the XML (a name-based path would 404 on the next stat).
+        await vscode.workspace.fs.stat(idUri);
+        const content = Buffer.from(await vscode.workspace.fs.readFile(idUri)).toString("utf8");
+        assert.ok(content.includes("<Rule"));
+    });
+
     test("UC-12: reading a missing object through the FS raises FileNotFound", async () => {
         const uri = buildResourceUri({
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "Rule",
+            objectId: "Does not exist",
             objectName: "Does not exist"
         });
         await assert.rejects(() => Promise.resolve(vscode.workspace.fs.readFile(uri)),
@@ -371,15 +403,16 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
     });
 
     test("UC-11: opening a virtual document in the editor works end-to-end", async () => {
+        const workflowId = await findObjectId("Workflow", "WF 1");
         const uri = buildResourceUri({
             tenantId: tenant.id,
             tenantName: tenant.name,
             objectType: "Workflow",
+            objectId: workflowId,
             objectName: "WF 1"
         });
         const document = await vscode.workspace.openTextDocument(uri);
         assert.ok(document.getText().includes('<Workflow name="WF 1"'));
-        // The display name is visible in the document path
-        assert.ok(document.uri.path.includes(tenant.name));
+        assert.ok(document.uri.path.includes("WF 1.xml"));
     });
 });
