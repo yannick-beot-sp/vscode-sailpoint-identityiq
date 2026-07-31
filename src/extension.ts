@@ -98,6 +98,7 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         // Files
         vscode.commands.registerCommand(COMMANDS.importFile, fileCommands.importFile, fileCommands),
         vscode.commands.registerCommand(COMMANDS.importFileExplorer, fileCommands.importFileFromExplorer, fileCommands),
+        vscode.commands.registerCommand(COMMANDS.importFileView, fileCommands.importFileFromView, fileCommands),
         vscode.commands.registerCommand(COMMANDS.refreshFile, fileCommands.refreshFile, fileCommands),
         vscode.commands.registerCommand(COMMANDS.compareFile, fileCommands.compareFile, fileCommands),
 

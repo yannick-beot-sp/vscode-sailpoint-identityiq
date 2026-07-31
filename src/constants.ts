@@ -44,6 +44,7 @@ export const COMMANDS = {
     openObject: "iiq.open-object",
     exportObjects: "iiq.export-objects",
     importFile: "iiq.import-file",
+    importFileView: "iiq.import-file-view",
     importFileExplorer: "iiq.import-file-explorer",
     refreshFile: "iiq.refresh-file",
     compareFile: "iiq.compare-file",
