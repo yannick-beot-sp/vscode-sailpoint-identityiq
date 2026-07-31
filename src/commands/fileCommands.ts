@@ -23,40 +23,35 @@ export class FileCommands {
      * - command palette / editor context menu: imports the active file
      * - environment context menu in the tree view: shows a file picker
      */
-    public async importFile(arg?: vscode.Uri | TenantTreeItem): Promise<void> {
+    public async importFile(arg?: vscode.Uri): Promise<void> {
         let tenant: TenantInfo | undefined;
-        let uris: vscode.Uri[] = [];
-
-        if (arg instanceof TenantTreeItem) {
-            tenant = arg.tenant;
-        } else if (arg instanceof vscode.Uri) {
-            uris = [arg];
-        }
-
-        if (uris.length === 0) {
-            const activeUri = vscode.window.activeTextEditor?.document.uri;
-            if (activeUri && activeUri.scheme === "file" && activeUri.path.toLowerCase().endsWith(".xml")) {
-                uris = [activeUri];
-            } else {
-                const picked = await vscode.window.showOpenDialog({
-                    title: "Choose the XML file(s) to import",
-                    canSelectFiles: true,
-                    canSelectFolders: false,
-                    canSelectMany: true,
-                    filters: { "XML files": ["xml"] }
-                });
-                if (!picked || picked.length === 0) {
-                    return;
-                }
-                uris = picked;
-            }
-        }
+        let uris: vscode.Uri[] = [arg];
 
         tenant ??= this.tenantService.getActiveTenant()
             ?? await chooseTenant(this.tenantService, "Import file(s)");
         if (!tenant) {
             return;
         }
+        await this.doImport(tenant, uris);
+    }
+
+    /**
+     * Imports XML file(s) into an environment.
+     * Entry points: environment context menu in the tree view: shows a file picker
+     */
+    public async importFileFromView(arg: TenantTreeItem): Promise<void> {
+        let tenant: TenantInfo = arg.tenant;
+        let uris: vscode.Uri[] | undefined = await vscode.window.showOpenDialog({
+            title: "Choose the XML file(s) to import",
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: true,
+            filters: { "XML files": ["xml"] }
+        });
+        if (!uris || uris.length === 0) {
+            return;
+        }
+
         await this.doImport(tenant, uris);
     }
 

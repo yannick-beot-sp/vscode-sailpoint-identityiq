@@ -126,6 +126,11 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.import-file-view",
+        "title": "Import file...",
+        "category": "IIQ"
+      },
+      {
         "command": "iiq.import-file-explorer",
         "title": "IIQ: Import file(s)...",
         "category": "IIQ"
@@ -309,6 +314,10 @@
           "when": "false"
         },
         {
+          "command": "iiq.import-file-view",
+          "when": "false"
+        },
+        {
           "command": "iiq.import-file-explorer",
           "when": "false"
         },
@@ -376,7 +385,7 @@
           "group": "2_actions@3"
         },
         {
-          "command": "iiq.import-file",
+          "command": "iiq.import-file-view",
           "when": "view == iiq.view.environments && viewItem == iiqTenant",
           "group": "2_actions@5"
         },
