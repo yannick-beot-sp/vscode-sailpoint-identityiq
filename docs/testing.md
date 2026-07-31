@@ -23,6 +23,7 @@ extension conforms to the documented contract before the real plugin exists.
 |---|---|
 | `src/test/tenantService.test.ts` | UC-01/02/03/05/06 — storage layer: environments and folders (nesting, move, recursive removal), credentials in the **real Secret Storage** of the test host, active environment and events |
 | `src/test/iiqClient.test.ts` | UC-04 (ping, bad credentials, unreachable server), UC-10 (pagination, sorting), UC-11/12 (read/write through the `iiq://` virtual FS, including `vscode.workspace.openTextDocument`; `stat` served by `HEAD` without transferring the body — asserted on the mock's request log), UC-13 (delete), UC-22 (import bundle), UC-30 (run rule with arguments) |
+| `src/test/fileCommands.test.ts` | UC-22 — `iiq.import-file-view` command registration, import from the environment tree view (file dialog stubbed) |
 
 The tests access the extension services through the API returned by
 `activate()` (`IIQExtensionApi` in `src/extension.ts`).

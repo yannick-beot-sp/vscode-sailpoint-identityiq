@@ -41,8 +41,9 @@ refresh and compare IIQ objects without leaving your editor.
 - Exported XML is **cleaned for source control** (configurable): internal ids,
   created/modified timestamps, reference ids, `significantModified`... removed,
   **CDATA preserved**.
-- **Import file(s)...** from the editor, or from the file explorer
-  (multi-selection, folders imported recursively), with a success/error report.
+- **Import file(s)...** from the editor, from an environment's context menu
+  in the tree view (file picker), or from the file explorer (multi-selection,
+  folders imported recursively), with a success/error report.
 - **Refresh file from IdentityIQ...**: re-fetch the object of the current XML file.
 - **Compare with IdentityIQ...**: diff the current XML file with its version
   in an environment.

@@ -18,21 +18,22 @@ export class FileCommands {
     constructor(private readonly tenantService: TenantService) { }
 
     /**
-     * Imports XML file(s) into an environment.
-     * Entry points:
-     * - command palette / editor context menu: imports the active file
-     * - environment context menu in the tree view: shows a file picker
+     * Imports the active or selected XML file into an environment.
+     * Entry points: command palette / editor context menu.
      */
-    public async importFile(arg?: vscode.Uri): Promise<void> {
-        let tenant: TenantInfo | undefined;
-        let uris: vscode.Uri[] = [arg];
-
-        tenant ??= this.tenantService.getActiveTenant()
+    public async importFile(uri?: vscode.Uri): Promise<void> {
+        const tenant = this.tenantService.getActiveTenant()
             ?? await chooseTenant(this.tenantService, "Import file(s)");
         if (!tenant) {
             return;
         }
-        await this.doImport(tenant, uris);
+
+        const fileUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+        if (!fileUri || !fileUri.path.toLowerCase().endsWith(".xml")) {
+            vscode.window.showWarningMessage("Please open an IdentityIQ XML file first.");
+            return;
+        }
+        await this.doImport(tenant, [fileUri]);
     }
 
     /**
