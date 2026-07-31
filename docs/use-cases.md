@@ -203,12 +203,15 @@ XSLT stylesheet for the same purpose; a text-based implementation was chosen
 to guarantee formatting and CDATA stability.
 
 ### UC-22 — Import files
-Command `iiq.import-file` / `iiq.import-file-explorer`:
-- entry points: active editor (editor context menu / palette), **file explorer**
-  (single file, multi-selection of files and/or **folders — imported
-  recursively**, XML files only), environment context menu (file dialog).
-- environment picker with active environment preselected (skipped when
-  launched from an environment node).
+Three commands share the same import pipeline (`POST /import`):
+- `iiq.import-file` — active editor (editor context menu / palette); uses the
+  active environment or shows an environment picker.
+- `iiq.import-file-explorer` — **file explorer** (single file, multi-selection
+  of files and/or **folders — imported recursively**, XML files only); shows
+  an environment picker.
+- `iiq.import-file-view` — **environment context menu** in the tree view: opens
+  a file picker for one or several XML files; the target environment is the
+  selected node (no environment picker).
 - each file is sent to `POST /import` (single object or `<sailpoint>` bundle).
 - final report: **information message with the number of files imported
   successfully and in error**; details are available in a text document.
@@ -334,7 +337,7 @@ Command `iiq.application.peek-objects` (application context menu — inline
 | Open object | `iiq.open-object` | palette, environment menu |
 | Get object (any type) | `iiq.get-object` | palette, environment menu |
 | Export objects | `iiq.export-objects` | palette, environment menu, object type menu (view) |
-| Import file(s) | `iiq.import-file` / `iiq.import-file-explorer` | palette, editor menu, explorer menu, environment menu |
+| Import file(s) | `iiq.import-file` / `iiq.import-file-explorer` / `iiq.import-file-view` | palette, editor menu, explorer menu, environment menu (view) |
 | Refresh file from IIQ | `iiq.refresh-file` | editor menu, palette |
 | Compare with IIQ | `iiq.compare-file` | editor menu, palette |
 | Run rule | `iiq.run-rule` | rule menu (view), editor menu, palette |
