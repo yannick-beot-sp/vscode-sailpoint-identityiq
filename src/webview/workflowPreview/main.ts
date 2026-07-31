@@ -46,7 +46,7 @@ const KIND_LABELS: Record<StepKind, string> = {
 let model: WorkflowModel | null = null;
 let issues: WorkflowIssue[] = [];
 let selectedStepId: string | undefined;
-let rankdir: "LR" | "TB" = vscode.getState()?.rankdir ?? "LR";
+let rankdir: "LR" | "TB" = vscode.getState()?.rankdir ?? "TB";
 // Pan/zoom transform of the viewport group
 let scale = 1;
 let panX = 0;
