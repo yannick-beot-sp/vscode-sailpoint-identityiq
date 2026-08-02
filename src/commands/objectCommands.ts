@@ -6,7 +6,7 @@ import { TenantService } from "../services/TenantService";
 import { getXmlCleaningOptions } from "../utils/configurationUtils";
 import { isEmpty, normalizeAsFilename } from "../utils/stringUtils";
 import { buildResourceUri } from "../utils/UriUtils";
-import { confirm, withProgress } from "../utils/vsCodeHelpers";
+import { confirm, chooseTenant, withProgress } from "../utils/vsCodeHelpers";
 import { buildSailpointBundle, cleanXml, renameXmlObject } from "../utils/xmlUtils";
 import { IIQTreeDataProvider } from "../views/IIQTreeDataProvider";
 import { ObjectTreeItem, ObjectTypeTreeItem, TenantTreeItem } from "../views/IIQTreeItem";
@@ -46,6 +46,14 @@ class ExportObjectTypeStep extends QuickPickObjectTypeStep {
 }
 
 interface ExportedObject {
+    definition: ObjectTypeDefinition;
+    object: ObjectSummary;
+}
+
+/** Parameters for copying an object from one environment to another */
+interface CopyObjectParams {
+    sourceTenant: TenantInfo;
+    targetTenant: TenantInfo;
     definition: ObjectTypeDefinition;
     object: ObjectSummary;
 }
@@ -230,6 +238,75 @@ export class ObjectCommands {
         }
     }
 
+    /**
+     * Copies an object to another environment.
+     * Entry point: command palette — source environment, object type, object,
+     * then target environment.
+     */
+    public async copyObjectToTenant(): Promise<void> {
+        const result = await runWizard({
+            title: "Copy an IdentityIQ object to another environment",
+            promptSteps: [
+                new QuickPickTenantStep({ tenantService: this.tenantService, name: "sourceTenant" }),
+                new QuickPickObjectTypeStep({ objectTypes: getAllObjectTypeDefinitions() }),
+                new QuickPickObjectStep({
+                    tenantService: this.tenantService,
+                    getTenant: (c) => c.sourceTenant as TenantInfo,
+                    getObjectType: (c) => c.objectType as ObjectTypeDefinition
+                }),
+                new QuickPickTenantStep({
+                    tenantService: this.tenantService,
+                    name: "targetTenant",
+                    skipIfOne: false,
+                    excludeTenantIds: (c) => [(c.sourceTenant as TenantInfo).id]
+                })
+            ]
+        }, {});
+        if (!result) {
+            return;
+        }
+        await this.doCopyObjectToTenant({
+            sourceTenant: result.sourceTenant as TenantInfo,
+            targetTenant: result.targetTenant as TenantInfo,
+            definition: result.objectType as ObjectTypeDefinition,
+            object: result.object as ObjectSummary
+        });
+    }
+
+    /**
+     * Copies an object to another environment.
+     * Entry point: object context menu — the source object is known,
+     * the user picks the target environment.
+     */
+    public async copyObjectToTenantFromView(node: ObjectTreeItem): Promise<void> {
+        const targetTenant = await chooseTenant(this.tenantService,
+            `Copy ${node.definition.objectType} "${node.object.name}" to...`,
+            { excludeTenantIds: [node.tenant.id] });
+        if (!targetTenant) {
+            return;
+        }
+        await this.doCopyObjectToTenant({
+            sourceTenant: node.tenant,
+            targetTenant,
+            definition: node.definition,
+            object: node.object
+        });
+    }
+
+    /**
+     * Copies an object to another environment.
+     * Entry point: drag-and-drop — source object and target environment
+     * are both known from the tree interaction.
+     */
+    public async copyObjectToTenantFromDrag(source: ObjectTreeItem, target: TenantTreeItem): Promise<void> {
+        await this.doCopyObjectToTenant({
+            sourceTenant: source.tenant,
+            targetTenant: target.tenant,
+            definition: source.definition,
+            object: source.object
+        });
+    }
+
     /** Deletes an object from the tree view, after confirmation */
     public async deleteObject(node: ObjectTreeItem): Promise<void> {
         if (!await confirm(
@@ -314,6 +391,49 @@ export class ObjectCommands {
             xmls.push(cleanXml(xml, cleaningOptions));
         }
         return xmls;
+    }
+
+    /**
+     * Shared implementation for copying an object between environments:
+     * fetch from source, clean like an export, import into target.
+     * Asks for confirmation before overwriting an existing object with the same name.
+     */
+    private async doCopyObjectToTenant(params: CopyObjectParams): Promise<void> {
+        const { sourceTenant, targetTenant, definition, object } = params;
+
+        if (sourceTenant.id === targetTenant.id) {
+            vscode.window.showWarningMessage("Source and target environment are the same.");
+            return;
+        }
+
+        const targetClient = new IIQClient(targetTenant, this.tenantService);
+        const existing = await targetClient.getObjectIfExists(definition.objectType, object.name);
+        if (existing !== undefined) {
+            if (!await confirm(
+                `A ${definition.label} named "${object.name}" already exists in "${targetTenant.name}". Overwrite it?`,
+                "Overwrite")) {
+                return;
+            }
+        }
+
+        try {
+            const sourceClient = new IIQClient(sourceTenant, this.tenantService);
+            await withProgress(
+                `Copying ${definition.objectType} "${object.name}" to ${targetTenant.name}...`,
+                async () => {
+                    const xml = await sourceClient.getObject(definition.objectType, object.name);
+                    const cleaned = cleanXml(xml, getXmlCleaningOptions());
+                    const result = await targetClient.importXml(cleaned);
+                    if (result.errors.length > 0) {
+                        throw new Error(result.errors.join(", "));
+                    }
+                });
+            vscode.window.showInformationMessage(
+                `${definition.objectType} "${object.name}" copied from "${sourceTenant.name}" to "${targetTenant.name}".`);
+            this.treeDataProvider.refresh();
+        } catch (error) {
+            vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+        }
     }
 
     private getDefaultUri(fileName?: string): vscode.Uri | undefined {

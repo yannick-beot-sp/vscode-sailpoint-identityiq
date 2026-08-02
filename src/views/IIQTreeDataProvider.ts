@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { OBJECT_TYPES } from "../models/ObjectTypes";
+import { OBJECT_TYPES, ObjectSummary } from "../models/ObjectTypes";
 import { isFolderTreeNode, isTenantInfo } from "../models/TreeNode";
 import { IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
@@ -161,17 +161,40 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
 }
 
 /**
- * Drag & drop support to organize environments in folders.
+ * Drag & drop support to organize environments in folders and copy objects
+ * between environments.
  */
+export type ObjectCopyHandler = (source: ObjectTreeItem, target: TenantTreeItem) => Promise<void>;
+
 export class IIQTreeDragAndDropController implements vscode.TreeDragAndDropController<BaseTreeItem> {
 
     private static readonly MIME_TYPE = "application/vnd.code.tree.iiq.view.environments";
-    readonly dropMimeTypes = [IIQTreeDragAndDropController.MIME_TYPE];
-    readonly dragMimeTypes = [IIQTreeDragAndDropController.MIME_TYPE];
+    private static readonly OBJECT_MIME_TYPE = "application/vnd.code.tree.iiq.view.environments.object";
+    readonly dropMimeTypes = [
+        IIQTreeDragAndDropController.MIME_TYPE,
+        IIQTreeDragAndDropController.OBJECT_MIME_TYPE
+    ];
+    readonly dragMimeTypes = [
+        IIQTreeDragAndDropController.MIME_TYPE,
+        IIQTreeDragAndDropController.OBJECT_MIME_TYPE
+    ];
 
-    constructor(private readonly tenantService: TenantService) { }
+    constructor(
+        private readonly tenantService: TenantService,
+        private readonly copyObjectToTenant: ObjectCopyHandler) { }
 
     handleDrag(source: readonly BaseTreeItem[], dataTransfer: vscode.DataTransfer): void {
+        const objectItems = source.filter(item => item instanceof ObjectTreeItem) as ObjectTreeItem[];
+        if (objectItems.length > 0) {
+            dataTransfer.set(IIQTreeDragAndDropController.OBJECT_MIME_TYPE,
+                new vscode.DataTransferItem(JSON.stringify(objectItems.map(item => ({
+                    tenantId: item.tenant.id,
+                    objectType: item.definition.objectType,
+                    objectId: item.object.id,
+                    objectName: item.object.name
+                })))));
+            return;
+        }
         const ids = source
             .filter(item => item instanceof FolderTreeItem || item instanceof TenantTreeItem)
             .map(item => item.id!);
@@ -182,6 +205,34 @@ export class IIQTreeDragAndDropController implements vscode.TreeDragAndDropContr
     }
 
     async handleDrop(target: BaseTreeItem | undefined, dataTransfer: vscode.DataTransfer): Promise<void> {
+        const objectTransfer = dataTransfer.get(IIQTreeDragAndDropController.OBJECT_MIME_TYPE);
+        if (objectTransfer) {
+            if (!(target instanceof TenantTreeItem)) {
+                vscode.window.showWarningMessage("Drop an object onto an environment to copy it.");
+                return;
+            }
+            const payloads = JSON.parse(await objectTransfer.asString()) as Array<{
+                tenantId: string;
+                objectType: string;
+                objectId: string;
+                objectName: string;
+            }>;
+            for (const payload of payloads) {
+                const sourceTenant = this.tenantService.getTenants().find(t => t.id === payload.tenantId);
+                if (!sourceTenant) {
+                    continue;
+                }
+                const definition = OBJECT_TYPES.find(t => t.objectType === payload.objectType);
+                if (!definition) {
+                    continue;
+                }
+                const object: ObjectSummary = { id: payload.objectId, name: payload.objectName };
+                const sourceItem = new ObjectTreeItem(sourceTenant, definition, object);
+                await this.copyObjectToTenant(sourceItem, target);
+            }
+            return;
+        }
+
         const transferItem = dataTransfer.get(IIQTreeDragAndDropController.MIME_TYPE);
         if (!transferItem) {
             return;

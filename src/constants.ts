@@ -59,6 +59,8 @@ export const COMMANDS = {
     configureLogging: "iiq.configure-logging",
     saveObject: "iiq.object.save",
     cloneObject: "iiq.object.clone",
+    copyObjectToTenant: "iiq.object.copy-to-tenant",
+    copyObjectToTenantView: "iiq.object.copy-to-tenant-view",
     deleteObject: "iiq.object.delete",
     refresh: "iiq.refresh",
     refreshNode: "iiq.refresh-node",
