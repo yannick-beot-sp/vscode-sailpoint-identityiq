@@ -37,10 +37,13 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
 
     // Tree view
     const treeDataProvider = new IIQTreeDataProvider(tenantService);
+    const objectCommands = new ObjectCommands(tenantService, treeDataProvider);
     const treeView = vscode.window.createTreeView(VIEW_ID, {
         treeDataProvider,
         canSelectMany: true,
-        dragAndDropController: new IIQTreeDragAndDropController(tenantService)
+        dragAndDropController: new IIQTreeDragAndDropController(
+            tenantService,
+            (source, target) => objectCommands.copyObjectToTenantFromDrag(source, target))
     });
 
     // Virtual file system (live edit of IdentityIQ objects) and diff content
@@ -50,7 +53,6 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
     // Commands
     const tenantCommands = new TenantCommands(tenantService);
     const folderCommands = new FolderCommands(tenantService);
-    const objectCommands = new ObjectCommands(tenantService, treeDataProvider);
     const fileCommands = new FileCommands(tenantService);
     const ruleCommands = new RuleCommands(tenantService);
     const taskCommands = new TaskCommands(tenantService);
@@ -93,6 +95,9 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         vscode.commands.registerCommand(COMMANDS.exportObjects, objectCommands.exportObjects, objectCommands),
         vscode.commands.registerCommand(COMMANDS.saveObject, objectCommands.saveObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.cloneObject, objectCommands.cloneObject, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.copyObjectToTenant, objectCommands.copyObjectToTenant, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.copyObjectToTenantView,
+            objectCommands.copyObjectToTenantFromView, objectCommands),
         vscode.commands.registerCommand(COMMANDS.deleteObject, objectCommands.deleteObject, objectCommands),
 
         // Files

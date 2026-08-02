@@ -16,6 +16,8 @@ export interface QuickPickTenantStepOptions {
     allowNone?: boolean;
     /** Skip the prompt if there is only one environment */
     skipIfOne?: boolean;
+    /** Environment ids to exclude from the picker */
+    excludeTenantIds?: string[] | ((context: WizardContext) => string[]);
 }
 
 /**
@@ -31,9 +33,14 @@ export class QuickPickTenantStep extends QuickPickPromptStep<WizardContext, Tena
             displayName: "environment",
             options: { matchOnDescription: true },
             skipIfOne: (options.skipIfOne ?? true) && !options.allowNone,
-            items: () => {
+            items: (context: WizardContext) => {
                 const active = options.tenantService.getActiveTenant();
+                const excludeIds = new Set(
+                    typeof options.excludeTenantIds === "function"
+                        ? options.excludeTenantIds(context)
+                        : options.excludeTenantIds ?? []);
                 const items: TenantQuickPickItem[] = options.tenantService.getTenants()
+                    .filter(tenant => !excludeIds.has(tenant.id))
                     .map(tenant => ({
                         label: tenant.name,
                         description: tenant.url,

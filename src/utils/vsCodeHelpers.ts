@@ -11,12 +11,19 @@ export async function confirm(message: string, confirmLabel = "Yes"): Promise<bo
     return answer === confirmLabel;
 }
 
+export interface ChooseTenantOptions {
+    /** Environment ids to exclude from the picker (e.g. the source when copying) */
+    excludeTenantIds?: string[];
+}
+
 /**
  * Asks the user to pick an environment. The active environment, if any,
  * is preselected. Returns undefined if the user cancelled.
  */
-export async function chooseTenant(tenantService: TenantService, title: string): Promise<TenantInfo | undefined> {
-    const tenants = tenantService.getTenants();
+export async function chooseTenant(tenantService: TenantService, title: string,
+    options?: ChooseTenantOptions): Promise<TenantInfo | undefined> {
+    const excludeIds = new Set(options?.excludeTenantIds ?? []);
+    const tenants = tenantService.getTenants().filter(t => !excludeIds.has(t.id));
     if (tenants.length === 0) {
         vscode.window.showWarningMessage("No IdentityIQ environment defined. Please add an environment first.");
         return undefined;

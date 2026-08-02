@@ -209,6 +209,16 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.object.copy-to-tenant",
+        "title": "Copy object to environment...",
+        "category": "IIQ"
+      },
+      {
+        "command": "iiq.object.copy-to-tenant-view",
+        "title": "Copy object to environment...",
+        "category": "IIQ"
+      },
+      {
         "command": "iiq.object.delete",
         "title": "Delete object...",
         "category": "IIQ"
@@ -287,6 +297,10 @@
         },
         {
           "command": "iiq.object.delete",
+          "when": "false"
+        },
+        {
+          "command": "iiq.object.copy-to-tenant-view",
           "when": "false"
         },
         {
@@ -527,12 +541,17 @@
         {
           "command": "iiq.object.clone",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
+          "group": "1_object@3"
+        },
+        {
+          "command": "iiq.object.copy-to-tenant-view",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
           "group": "1_object@2"
         },
         {
           "command": "iiq.object.delete",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
-          "group": "1_object@3"
+          "group": "1_object@4"
         }
       ],
       "editor/context": [
