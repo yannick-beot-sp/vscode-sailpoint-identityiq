@@ -204,6 +204,11 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.object.save-with-dependencies",
+        "title": "Save to file with dependencies...",
+        "category": "IIQ"
+      },
+      {
         "command": "iiq.object.clone",
         "title": "Clone object...",
         "category": "IIQ"
@@ -293,6 +298,10 @@
         },
         {
           "command": "iiq.object.save",
+          "when": "false"
+        },
+        {
+          "command": "iiq.object.save-with-dependencies",
           "when": "false"
         },
         {
@@ -537,6 +546,11 @@
           "command": "iiq.object.save",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
           "group": "1_object@1"
+        },
+        {
+          "command": "iiq.object.save-with-dependencies",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
+          "group": "1_object@1.5"
         },
         {
           "command": "iiq.object.clone",

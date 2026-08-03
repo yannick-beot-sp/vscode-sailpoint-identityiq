@@ -58,6 +58,7 @@ export const COMMANDS = {
     stopTailLogs: "iiq.stop-tail-logs",
     configureLogging: "iiq.configure-logging",
     saveObject: "iiq.object.save",
+    saveObjectWithDependencies: "iiq.object.save-with-dependencies",
     cloneObject: "iiq.object.clone",
     copyObjectToTenant: "iiq.object.copy-to-tenant",
     copyObjectToTenantView: "iiq.object.copy-to-tenant-view",

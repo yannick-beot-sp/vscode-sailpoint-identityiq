@@ -4,6 +4,7 @@ import { TenantInfo } from "../models/TenantInfo";
 import { IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
 import { getXmlCleaningOptions } from "../utils/configurationUtils";
+import { extractObjectReferences, ObjectReference, referenceKey } from "../utils/dependencyUtils";
 import { isEmpty, normalizeAsFilename } from "../utils/stringUtils";
 import { buildResourceUri } from "../utils/UriUtils";
 import { confirm, chooseTenant, withProgress } from "../utils/vsCodeHelpers";
@@ -171,6 +172,47 @@ export class ObjectCommands {
     /** Saves a single object from the tree view to a local file */
     public async saveObject(node: ObjectTreeItem): Promise<void> {
         await this.exportToSingleFile(node.tenant, [{ definition: node.definition, object: node.object }]);
+    }
+
+    /**
+     * Saves an object and its dependencies recursively to a single XML bundle.
+     * The destination file is chosen before any export request is sent.
+     */
+    public async saveObjectWithDependencies(node: ObjectTreeItem): Promise<void> {
+        const defaultName = `${normalizeAsFilename(node.object.name)}-with-deps.xml`;
+        const target = await vscode.window.showSaveDialog({
+            title: "Save object with dependencies",
+            defaultUri: this.getDefaultUri(defaultName),
+            filters: { "XML files": ["xml"] }
+        });
+        if (!target) {
+            return;
+        }
+
+        try {
+            const { xmls, missing } = await withProgress(
+                `Collecting dependencies for ${node.object.name}...`,
+                () => this.fetchWithDependencies(node.tenant, node.definition.objectType, node.object.name));
+
+            if (missing.length > 0) {
+                const detail = missing.map(ref => `${ref.objectType} "${ref.name}"`).join("\n");
+                const action = await vscode.window.showWarningMessage(
+                    `${missing.length} dependent object(s) could not be found and were skipped.`,
+                    "Show details");
+                if (action === "Show details") {
+                    await vscode.workspace.openTextDocument({ content: detail, language: "text" })
+                        .then(doc => vscode.window.showTextDocument(doc));
+                }
+            }
+
+            const content = buildSailpointBundle(xmls);
+            await vscode.workspace.fs.writeFile(target, Buffer.from(content, "utf8"));
+            await vscode.window.showTextDocument(target, { preview: false });
+            vscode.window.showInformationMessage(
+                `Saved ${node.definition.objectType} "${node.object.name}" with ${xmls.length - 1} dependent object(s).`);
+        } catch (error) {
+            vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+        }
     }
 
     /**
@@ -391,6 +433,49 @@ export class ObjectCommands {
             xmls.push(cleanXml(xml, cleaningOptions));
         }
         return xmls;
+    }
+
+    /**
+     * Fetches an object and all its exportable dependencies recursively.
+     * Returns cleaned XML fragments in discovery order (root first).
+     */
+    private async fetchWithDependencies(tenant: TenantInfo, rootObjectType: string, rootName: string)
+        : Promise<{ xmls: string[]; missing: ObjectReference[] }> {
+        const client = new IIQClient(tenant, this.tenantService);
+        const cleaningOptions = getXmlCleaningOptions();
+        const visited = new Set<string>();
+        const queue: ObjectReference[] = [{ objectType: rootObjectType, name: rootName }];
+        const xmls: string[] = [];
+        const missing: ObjectReference[] = [];
+
+        while (queue.length > 0) {
+            const ref = queue.shift()!;
+            const key = referenceKey(ref);
+            if (visited.has(key)) {
+                continue;
+            }
+            visited.add(key);
+
+            const xml = await client.getObjectIfExists(ref.objectType, ref.name);
+            if (xml === undefined) {
+                if (ref.objectType === rootObjectType && ref.name === rootName) {
+                    throw new Error(`${ref.objectType} "${ref.name}" was not found on "${tenant.name}".`);
+                }
+                missing.push(ref);
+                continue;
+            }
+
+            const cleaned = cleanXml(xml, cleaningOptions);
+            xmls.push(cleaned);
+
+            for (const dependency of extractObjectReferences(cleaned)) {
+                if (!visited.has(referenceKey(dependency))) {
+                    queue.push(dependency);
+                }
+            }
+        }
+
+        return { xmls, missing };
     }
 
     /**
