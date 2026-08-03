@@ -94,6 +94,8 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         vscode.commands.registerCommand(COMMANDS.openObject, objectCommands.openObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.exportObjects, objectCommands.exportObjects, objectCommands),
         vscode.commands.registerCommand(COMMANDS.saveObject, objectCommands.saveObject, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.saveObjectWithDependencies,
+            objectCommands.saveObjectWithDependencies, objectCommands),
         vscode.commands.registerCommand(COMMANDS.cloneObject, objectCommands.cloneObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.copyObjectToTenant, objectCommands.copyObjectToTenant, objectCommands),
         vscode.commands.registerCommand(COMMANDS.copyObjectToTenantView,
