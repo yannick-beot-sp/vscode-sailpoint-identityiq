@@ -31,6 +31,9 @@ export interface QuickPickObjectStepOptions {
  */
 export class QuickPickObjectStep extends QuickPickPromptStep<WizardContext, ObjectQuickPickItem> {
 
+    private readonly getObjectType: (context: WizardContext) => ObjectTypeDefinition;
+    private readonly canPickMany: boolean;
+
     constructor(options: QuickPickObjectStepOptions) {
         super({
             name: options.name ?? (options.canPickMany ? "objects" : "object"),
@@ -72,5 +75,16 @@ export class QuickPickObjectStep extends QuickPickPromptStep<WizardContext, Obje
             },
             project: (item: ObjectQuickPickItem) => item.object
         });
+        this.getObjectType = options.getObjectType;
+        this.canPickMany = options.canPickMany ?? false;
+    }
+
+    /** Shows the current object type in the quick pick placeholder (e.g. "Choose Rules"). */
+    public override async configureBeforePrompt(wizardContext: WizardContext): Promise<void> {
+        const { label } = this.getObjectType(wizardContext);
+        // Labels are plural (e.g. "Rules"); avoid "Choose one Rules".
+        this._options.placeHolder = this.canPickMany
+            ? `Choose ${label}`
+            : `Choose from ${label}`;
     }
 }

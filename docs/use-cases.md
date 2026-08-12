@@ -154,9 +154,10 @@ Command `iiq.open-object` (palette or environment context menu):
   as file system errors so the editor keeps the dirty state.
 - `iiq.refresh-file` on a virtual document reverts it (re-fetches from IIQ).
 
-### UC-13 — Save an object from the view / delete an object
-- `iiq.object.save` (object context menu): save dialog, XML fetched and
-  **cleaned** (see UC-21), file written and opened.
+### UC-13 — Export an object from the view / delete an object
+- `iiq.object.save` (**Export object...**, object context menu): tenant and
+  object are taken from the leaf; save dialog, XML fetched and **cleaned**
+  (see UC-21 — ids removed by default), file written and opened.
 - `iiq.object.delete` (object context menu): modal confirmation then
   `DELETE /objects/{type}/{name}`; the view is refreshed.
 
@@ -346,7 +347,7 @@ Command `iiq.application.peek-objects` (application context menu — inline
 | Run task | `iiq.run-task` | task menu (view), palette |
 | Tail server logs | `iiq.tail-logs` | environment menu, palette |
 | Stop tailing server logs | `iiq.stop-tail-logs` | palette, status bar |
-| Save object to file | `iiq.object.save` | object menu |
+| Export object | `iiq.object.save` | object menu |
 | Delete object | `iiq.object.delete` | object menu |
 | Refresh / Load more / Sort by... | `iiq.refresh`, `iiq.load-more`, `iiq.sort-by-*` | view |
 | Test an application connection | `iiq.application.test-connection` | application menu (view), palette |
