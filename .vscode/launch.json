@@ -15,7 +15,9 @@
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
+			// Rebuilds dist/ on every save (npm: watch:esbuild + watch:tsc).
+			// Reload the Extension Development Host to pick up changes.
+			"preLaunchTask": "watch"
 		}
 	]
 }

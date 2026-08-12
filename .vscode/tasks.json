@@ -9,8 +9,14 @@
                 "npm: watch:tsc",
                 "npm: watch:esbuild"
             ],
+            "dependsOrder": "parallel",
+            // Empty matcher: wait for the background dependency tasks,
+            // then let the debugger start while watchers keep running.
+            "problemMatcher": [],
             "presentation": {
-                "reveal": "never"
+                "reveal": "silent",
+                "panel": "dedicated",
+                "group": "watch"
             },
             "group": {
                 "kind": "build",
@@ -21,12 +27,33 @@
             "type": "npm",
             "script": "watch:esbuild",
             "group": "build",
-            "problemMatcher": "$esbuild-watch",
+            "problemMatcher": {
+                "owner": "esbuild",
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": [
+                    {
+                        "regexp": "^(?:✘|X) (?:\\[ERROR\\] )?(.+)$",
+                        "message": 1
+                    },
+                    {
+                        "regexp": "^\\s+((?:[a-zA-Z]:)?[^:\\s]+):(\\d+):(\\d+):$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^\\[watch\\] build started",
+                    "endsPattern": "^\\[watch\\] build finished"
+                }
+            },
             "isBackground": true,
             "label": "npm: watch:esbuild",
             "presentation": {
                 "group": "watch",
-                "reveal": "never"
+                "reveal": "silent",
+                "panel": "dedicated"
             }
         },
 		{
@@ -38,7 +65,8 @@
             "label": "npm: watch:tsc",
             "presentation": {
                 "group": "watch",
-                "reveal": "never"
+                "reveal": "silent",
+                "panel": "dedicated"
             }
         },
 		{
