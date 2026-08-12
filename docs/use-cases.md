@@ -130,8 +130,10 @@ an environment (open, export, import, refresh, compare).
 - View container **IdentityIQ** (activity bar) > view **Environments**.
 - Hierarchy: folders > environments > **object types (alphabetical)** > objects.
 - Object types displayed: Applications, Bundles, Forms, Identities,
-  ObjectConfigs, QuickLinks, Rules, Tasks, Workflows (extensible via
-  `OBJECT_TYPES`).
+  ObjectConfigs, QuickLinks, Rules, Tasks, Workflows, Workgroups (extensible
+  via `OBJECT_TYPES`). Workgroups are Identity objects with
+  `workgroup="true"` (virtual type alias in the plugin); they are excluded
+  from the Identities list.
 - **Pagination**: only `iiq.pagination.pageSize` objects (default **200**) are
   listed; a "Load more... (n/total)" node fetches the next page.
 - **Sorting**: default order from the `iiq.objectList.sort` setting (`name` or

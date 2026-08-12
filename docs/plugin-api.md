@@ -23,7 +23,8 @@ References:
   interface `{baseUrl}/plugin/rest/iiq-devtools/objects/{ObjectType}/{ObjectNameOrId}`
   where `{ObjectType}` is a class name **relative to the `sailpoint.object`
   package** (e.g. `Rule`, `TaskDefinition`, `accesshistory.HistoricalIdentity`).
-  The supported set is **`sailpoint.object.ClassLists.MajorClasses`**: the
+  The supported set is **`sailpoint.object.ClassLists.MajorClasses`**, plus
+  the virtual alias **`Workgroup`** (`Identity` with `workgroup=true`): the
   plugin indexes those classes by relative name and rejects (`404`) any other
   type. The extension embeds a mirror of this list (`ALL_OBJECT_TYPES` in
   `src/models/ObjectTypes.ts`) for the generic "Get object..." command.
@@ -111,7 +112,7 @@ Response `200`:
 {
   "result": {
     "version": "8.4p2",
-    "pluginVersion": "1.0.0",
+    "pluginVersion": "1.1.0",
     "apiVersion": 1,
     "identity": "spadmin"
   }
@@ -128,13 +129,13 @@ Response `200`:
 #### `GET /system/classes`
 
 Returns the list of object types supported by the generic interface — the
-classes of `ClassLists.MajorClasses`, named relative to `sailpoint.object` —
-so the extension can discover new types dynamically (its embedded
-`ALL_OBJECT_TYPES` list is a static mirror).
+classes of `ClassLists.MajorClasses`, named relative to `sailpoint.object`,
+plus the virtual `Workgroup` alias — so the extension can discover new types
+dynamically (its embedded `ALL_OBJECT_TYPES` list is a static mirror).
 
 Response `200`:
 ```json
-{ "result": ["AccountGroup", "ActivityDataSource", "...", "Rule", "TaskDefinition", "TaskResult", "Workflow", "accesshistory.HistoricalIdentity", "..."] }
+{ "result": ["AccountGroup", "ActivityDataSource", "...", "Rule", "TaskDefinition", "TaskResult", "Workflow", "Workgroup", "accesshistory.HistoricalIdentity", "..."] }
 ```
 
 ### 2. Generic object CRUD
@@ -166,6 +167,12 @@ For `TaskDefinition`, an unconditional `template = false` filter is always
 applied (not exposed as a query parameter): templates (`template="true"` in the
 XML) are blueprints used to create tasks, not runnable tasks themselves, so
 they are never returned by this endpoint.
+
+`Workgroup` is a **virtual type alias** for `Identity`: it resolves to the
+`Identity` class, and listing applies an unconditional `workgroup = true`
+filter. Conversely, listing `Identity` always applies `workgroup = false`, so
+regular identities and workgroups never overlap. CRUD on `/objects/Workgroup/...`
+operates on the underlying `Identity` (XML root remains `<Identity workgroup="true" …>`).
 
 Response `200` — `result` is the array of object summaries, `count` is the
 total regardless of pagination:

@@ -105,7 +105,7 @@ export class MockPluginServer {
     }
 
     public has(objectType: string, name: string): boolean {
-        return this.objects.get(objectType)?.has(name) ?? false;
+        return this.objects.get(this.resolveStorageType(objectType))?.has(name) ?? false;
     }
 
     /** Current level override of a logger, for test assertions (undefined when not overridden) */
@@ -118,11 +118,20 @@ export class MockPluginServer {
         this.connectorObjects.set(`${applicationName}:${schemaObjectType}`, objects);
     }
 
+    /**
+     * Workgroup is a virtual alias for Identity (workgroup="true"), matching
+     * the plugin contract.
+     */
+    private resolveStorageType(objectType: string): string {
+        return objectType === "Workgroup" ? "Identity" : objectType;
+    }
+
     private store(objectType: string, name: string, xml: string): void {
-        let byName = this.objects.get(objectType);
+        const storageType = this.resolveStorageType(objectType);
+        let byName = this.objects.get(storageType);
         if (!byName) {
             byName = new Map();
-            this.objects.set(objectType, byName);
+            this.objects.set(storageType, byName);
         }
         const existing = byName.get(name);
         const now = new Date(Date.UTC(2026, 0, 1 + this.idCounter)).toISOString();
@@ -184,7 +193,7 @@ export class MockPluginServer {
             this.json(res, 200, {
                 result: {
                     version: "8.4p2",
-                    pluginVersion: "1.0.0",
+                    pluginVersion: "1.1.0",
                     apiVersion: EXPECTED_API_VERSION,
                     identity: this.username
                 }
@@ -238,7 +247,7 @@ export class MockPluginServer {
                 if (!stored) {
                     this.json(res, 404, { error: `${objectType} ${nameOrId} not found` });
                 } else {
-                    this.objects.get(objectType)!.delete(stored.name);
+                    this.objects.get(this.resolveStorageType(objectType))!.delete(stored.name);
                     res.writeHead(204);
                     res.end();
                 }
@@ -462,7 +471,7 @@ export class MockPluginServer {
 
     /** Resolves an object by id first, then by name (same rules as the spec) */
     private find(objectType: string, nameOrId: string): StoredObject | undefined {
-        const byName = this.objects.get(objectType);
+        const byName = this.objects.get(this.resolveStorageType(objectType));
         if (!byName) {
             return undefined;
         }
@@ -481,7 +490,7 @@ export class MockPluginServer {
         const sortDir = params.get("sortDir") ?? "asc";
         const excludeTypes = (params.get("excludeTypes") ?? "").split(",").filter(s => s.length > 0);
 
-        let all = [...(this.objects.get(objectType)?.values() ?? [])];
+        let all = [...(this.objects.get(this.resolveStorageType(objectType))?.values() ?? [])];
         if (excludeTypes.length > 0) {
             // Same contract as the plugin: exclude on the type attribute,
             // objects without a type are kept
@@ -493,6 +502,13 @@ export class MockPluginServer {
         if (objectType === "TaskDefinition") {
             // Same contract as the plugin: templates are never listed as tasks
             all = all.filter(stored => !/\stemplate="true"/.test(stored.xml));
+        }
+        if (objectType === "Workgroup") {
+            // Same contract as the plugin: workgroups are Identity with workgroup=true
+            all = all.filter(stored => /\sworkgroup="true"/.test(stored.xml));
+        } else if (objectType === "Identity") {
+            // Keep regular identities and workgroups in separate lists
+            all = all.filter(stored => !/\sworkgroup="true"/.test(stored.xml));
         }
         all.sort((a, b) => sortBy === "modified"
             ? a.modified.localeCompare(b.modified)
