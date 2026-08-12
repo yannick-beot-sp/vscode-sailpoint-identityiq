@@ -200,7 +200,7 @@
       },
       {
         "command": "iiq.object.save",
-        "title": "Save to file...",
+        "title": "Export object...",
         "category": "IIQ"
       },
       {

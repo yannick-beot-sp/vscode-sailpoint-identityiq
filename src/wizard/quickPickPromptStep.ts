@@ -22,7 +22,7 @@ export interface QuickPickPromptStepOptions<T extends WizardContext, TPick exten
 
 /** Wizard step displaying a quick pick and storing the selection in the context */
 export class QuickPickPromptStep<T extends WizardContext, TPick extends QuickPickItem> extends WizardPromptStep<T> {
-    private readonly _options: QuickPickOptions;
+    protected readonly _options: QuickPickOptions;
     private readonly _name: string;
     private readonly _skipIfOne: boolean;
     private readonly _items: string[] | TPick[] | ((context: T) => string[] | TPick[] | Promise<string[] | TPick[]>);

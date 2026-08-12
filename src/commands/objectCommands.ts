@@ -169,7 +169,11 @@ export class ObjectCommands {
         }
     }
 
-    /** Saves a single object from the tree view to a local file */
+    /**
+     * Exports a single object from the tree view to a local file.
+     * Tenant and object are taken from the leaf; the XML is cleaned
+     * (ids removed by default) before the save dialog.
+     */
     public async saveObject(node: ObjectTreeItem): Promise<void> {
         await this.exportToSingleFile(node.tenant, [{ definition: node.definition, object: node.object }]);
     }

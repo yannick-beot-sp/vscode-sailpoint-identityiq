@@ -38,6 +38,8 @@ refresh and compare IIQ objects without leaving your editor.
 ### Export / import
 - **Export objects...**: pick an environment, one or several object types, then
   the objects; export to one file per object or to a single `<sailpoint>` file.
+- **Export object...** (object leaf context menu): tenant and object are taken
+  from the selection; opens a save dialog with cleaned XML.
 - Exported XML is **cleaned for source control** (configurable): internal ids,
   created/modified timestamps, reference ids, `significantModified`... removed,
   **CDATA preserved**.
