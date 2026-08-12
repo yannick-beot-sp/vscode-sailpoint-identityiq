@@ -31,7 +31,9 @@ export const OBJECT_TYPES: ObjectTypeDefinition[] = [
     { objectType: "Rule", label: "Rules", icon: "code" },
     // Reports are TaskDefinitions too (type Report or LiveReport): keep them out of the Tasks list
     { objectType: "TaskDefinition", label: "Tasks", icon: "checklist", excludeTypes: ["Report", "LiveReport"] },
-    { objectType: "Workflow", label: "Workflows", icon: "type-hierarchy-sub" }
+    { objectType: "Workflow", label: "Workflows", icon: "type-hierarchy-sub" },
+    // Workgroups are Identity objects with workgroup="true" (virtual type alias in the plugin)
+    { objectType: "Workgroup", label: "Workgroups", icon: "organization" }
 ];
 
 export function getObjectTypeDefinition(objectType: string): ObjectTypeDefinition | undefined {
@@ -82,7 +84,10 @@ export const ALL_OBJECT_TYPES: string[] = [
     "SyslogEvent", "Tag", "Target", "TargetAssociation", "TargetSource", "TaskDefinition",
     "TaskResult", "TaskSchedule", "TimePeriod", "UIConfig", "UIPreferences", "Widget",
     "Workflow", "WorkflowCase", "WorkflowRegistry", "WorkflowTestSuite", "WorkItem",
-    "WorkItemArchive", "YAMLConfig"
+    "WorkItemArchive",
+    // Virtual alias: Identity with workgroup=true (not a ClassLists.MajorClasses entry)
+    "Workgroup",
+    "YAMLConfig"
 ];
 
 /**

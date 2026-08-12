@@ -132,6 +132,27 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
         assert.strictEqual(result.count, names.length);
     });
 
+    test("UC-10: workgroups are listed separately from identities", async () => {
+        server.seed("Identity", "spadmin", '<Identity name="spadmin"/>');
+        server.seed("Identity", "IIQWorkgroup",
+            '<Identity name="IIQWorkgroup" workgroup="true"/>');
+
+        const identities = await client.listObjects("Identity");
+        const identityNames = identities.objects.map(o => o.name);
+        assert.ok(identityNames.includes("spadmin"));
+        assert.ok(!identityNames.includes("IIQWorkgroup"),
+            `workgroups must be excluded from Identity list, got: ${identityNames}`);
+
+        const workgroups = await client.listObjects("Workgroup");
+        const workgroupNames = workgroups.objects.map(o => o.name);
+        assert.deepStrictEqual(workgroupNames, ["IIQWorkgroup"]);
+        assert.strictEqual(workgroups.count, 1);
+
+        // Virtual type resolves to the same Identity XML
+        const xml = await client.getObject("Workgroup", "IIQWorkgroup");
+        assert.ok(xml.includes('workgroup="true"'));
+    });
+
     test("UC-11: getObject returns the XML representation", async () => {
         const xml = await client.getObject("Rule", "Rule 1");
         assert.ok(xml.includes('<Rule name="Rule 1"'));

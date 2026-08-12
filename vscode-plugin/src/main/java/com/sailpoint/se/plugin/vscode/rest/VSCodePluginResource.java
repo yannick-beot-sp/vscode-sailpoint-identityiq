@@ -67,6 +67,7 @@ import sailpoint.object.Attributes;
 import sailpoint.object.AuditEvent;
 import sailpoint.object.ClassLists;
 import sailpoint.object.Filter;
+import sailpoint.object.Identity;
 import sailpoint.object.Plugin;
 import sailpoint.object.QueryOptions;
 import sailpoint.object.Rule;
@@ -173,14 +174,20 @@ public class VSCodePluginResource extends BasePluginResource {
     }
 
     /**
-     * Object types supported by the generic interface.
+     * Object types supported by the generic interface, including the virtual
+     * {@code Workgroup} alias (Identity with {@code workgroup=true}).
      */
     @GET
     @Path("system/classes")
     @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> classes() {
         LOG.debug("classes()");
-        return ok(new ArrayList<>(MAJOR_CLASSES.keySet()));
+        List<String> names = new ArrayList<>(MAJOR_CLASSES.keySet());
+        if (!names.contains("Workgroup")) {
+            names.add("Workgroup");
+            Collections.sort(names);
+        }
+        return ok(names);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -224,6 +231,17 @@ public class VSCodePluginResource extends BasePluginResource {
             // Templates are blueprints used to create tasks, not runnable
             // tasks themselves: never show them in the Tasks list.
             Filter filter = Filter.eq("template", false);
+            countOptions.addFilter(filter);
+            queryOptions.addFilter(filter);
+        }
+        if ("Workgroup".equals(type)) {
+            // Workgroups are Identity objects with workgroup=true.
+            Filter filter = Filter.eq("workgroup", true);
+            countOptions.addFilter(filter);
+            queryOptions.addFilter(filter);
+        } else if (Identity.class.equals(clazz)) {
+            // Keep regular identities and workgroups in separate lists.
+            Filter filter = Filter.eq("workgroup", false);
             countOptions.addFilter(filter);
             queryOptions.addFilter(filter);
         }
@@ -837,9 +855,14 @@ public class VSCodePluginResource extends BasePluginResource {
 
     /**
      * Resolves an object type against the supported classes
-     * (ClassLists.MajorClasses); anything else is rejected.
+     * (ClassLists.MajorClasses). {@code Workgroup} is a virtual alias for
+     * {@link Identity} (objects with {@code workgroup=true}); anything else
+     * unknown is rejected.
      */
     private Class<? extends SailPointObject> resolveClass(String type) {
+        if ("Workgroup".equals(type)) {
+            return Identity.class;
+        }
         Class<? extends SailPointObject> clazz = type == null ? null : MAJOR_CLASSES.get(type);
         if (clazz == null) {
             throw error(Response.Status.NOT_FOUND, "Unknown or unsupported object type: " + type);
