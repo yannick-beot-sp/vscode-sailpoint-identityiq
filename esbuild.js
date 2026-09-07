@@ -42,6 +42,22 @@ async function main() {
 			esbuildProblemMatcherPlugin,
 		],
 	});
+	const mcpStdioCtx = await esbuild.context({
+		entryPoints: [
+			'src/mcp/stdio.ts'
+		],
+		bundle: true,
+		format: 'cjs',
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: 'node',
+		outfile: 'dist/mcp-stdio.js',
+		logLevel: 'silent',
+		plugins: [
+			esbuildProblemMatcherPlugin,
+		],
+	});
 	// Webview scripts run in the browser inside webview panels
 	const webviewCtx = await esbuild.context({
 		entryPoints: [
@@ -60,10 +76,10 @@ async function main() {
 		],
 	});
 	if (watch) {
-		await Promise.all([extensionCtx.watch(), webviewCtx.watch()]);
+		await Promise.all([extensionCtx.watch(), mcpStdioCtx.watch(), webviewCtx.watch()]);
 	} else {
-		await Promise.all([extensionCtx.rebuild(), webviewCtx.rebuild()]);
-		await Promise.all([extensionCtx.dispose(), webviewCtx.dispose()]);
+		await Promise.all([extensionCtx.rebuild(), mcpStdioCtx.rebuild(), webviewCtx.rebuild()]);
+		await Promise.all([extensionCtx.dispose(), mcpStdioCtx.dispose(), webviewCtx.dispose()]);
 	}
 }
 

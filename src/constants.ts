@@ -90,3 +90,19 @@ export const CONFIGURATION = {
     xmlCompletionEnabled: "iiq.xml.completion.enabled",
     xmlDtdPath: "iiq.xml.dtdPath"
 } as const;
+
+/** Provider id declared in package.json `contributes.mcpServerDefinitionProviders` */
+export const MCP_PROVIDER_ID = "iiq.mcp";
+
+/** Label shown in the MCP server list (VS Code / Cursor) */
+export const MCP_SERVER_LABEL = "SailPoint IdentityIQ";
+
+/** Env vars passed to the MCP stdio process so it can reach the loopback bridge */
+export const MCP_ENV_URL = "IIQ_MCP_URL";
+export const MCP_ENV_TOKEN = "IIQ_MCP_TOKEN";
+
+/** Interval between TaskResult status polls while waiting on `iiq_run_task` */
+export const TASK_POLL_INTERVAL_MS = 2000;
+
+/** Max time `iiq_run_task` waits for completion when `wait` is true */
+export const TASK_WAIT_CAP_MS = 120_000;

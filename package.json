@@ -23,7 +23,8 @@
   },
   "activationEvents": [
     "onFileSystem:iiq",
-    "onLanguage:xml"
+    "onLanguage:xml",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -31,7 +32,9 @@
       {
         "scopeName": "source.beanshell.injection",
         "path": "./syntaxes/beanshell-injection.tmLanguage.json",
-        "injectTo": ["text.xml"],
+        "injectTo": [
+          "text.xml"
+        ],
         "embeddedLanguages": {
           "meta.embedded.block.java": "java"
         }
@@ -60,6 +63,12 @@
       {
         "view": "iiq.view.environments",
         "contents": "No IdentityIQ environment yet.\n[Add environment](command:iiq.tenant.add)"
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "iiq.mcp",
+        "label": "SailPoint IdentityIQ"
       }
     ],
     "commands": [
@@ -717,6 +726,7 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "axios": "^1.13.4",
     "yauzl": "^3.4.0"
   },

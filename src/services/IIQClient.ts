@@ -1,11 +1,9 @@
 import * as https from "https";
 import axios, { AxiosInstance } from "axios";
-import { EXPECTED_API_VERSION, PLUGIN_REST_BASE_PATH } from "../constants";
+import { CONFIGURATION, EXPECTED_API_VERSION, PLUGIN_REST_BASE_PATH } from "../constants";
 import { ObjectListResult, ObjectSummary } from "../models/ObjectTypes";
-import { TenantInfo } from "../models/TenantInfo";
-import { getRejectUnauthorized, SortField } from "../utils/configurationUtils";
+import { TenantCredentials, TenantInfo } from "../models/TenantInfo";
 import { wrapSourceCdata } from "../utils/xmlUtils";
-import { TenantService } from "./TenantService";
 
 /**
  * Standard JSON envelope of the plugin REST API (see docs/plugin-api.md):
@@ -115,6 +113,12 @@ export interface ListObjectsOptions {
     excludeTypes?: string[];
 }
 
+export interface TenantCredentialsProvider {
+    getCredentials(tenantId: string): Promise<TenantCredentials | undefined>;
+}
+
+export type SortField = "name" | "lastModified";
+
 /**
  * HTTP client for the companion IdentityIQ plugin REST API.
  * See docs/plugin-api.md for the API specification.
@@ -126,7 +130,7 @@ export class IIQClient {
 
     constructor(
         private readonly tenant: TenantInfo,
-        private readonly tenantService: TenantService) { }
+        private readonly tenantService: TenantCredentialsProvider) { }
 
     private async createAxios(basePath: string): Promise<AxiosInstance> {
         const credentials = await this.tenantService.getCredentials(this.tenant.id);
@@ -140,7 +144,7 @@ export class IIQClient {
                 password: credentials.password
             },
             httpsAgent: new https.Agent({
-                rejectUnauthorized: getRejectUnauthorized()
+                rejectUnauthorized: readRejectUnauthorized()
             }),
             timeout: 60_000
         });
@@ -489,4 +493,17 @@ function improveError(error: unknown, tenant: TenantInfo): Error {
         return new Error(`Could not reach "${tenant.name}" at ${tenant.url} (${error.code ?? error.message}). Please verify the URL.`);
     }
     return error instanceof Error ? error : new Error(String(error));
+}
+
+/**
+ * Reads the SSL setting from VS Code when the extension host is available.
+ * Falls back to verifying certificates when `vscode` is not loaded (MCP tests).
+ */
+function readRejectUnauthorized(): boolean {
+    try {
+        const vscode = require("vscode") as typeof import("vscode");
+        return vscode.workspace.getConfiguration().get<boolean>(CONFIGURATION.rejectUnauthorized, true) ?? true;
+    } catch {
+        return true;
+    }
 }
