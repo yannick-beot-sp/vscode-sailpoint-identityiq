@@ -11,6 +11,7 @@ import { TaskCommands } from "./commands/taskCommands";
 import { TenantCommands } from "./commands/tenantCommands";
 import { COMMANDS, DIFF_SCHEME, URI_SCHEME, VIEW_ID } from "./constants";
 import { IIQRemoteContentProvider, IIQResourceProvider } from "./files/IIQResourceProvider";
+import { registerIdentityIqMcp } from "./mcp/register";
 import { EnvironmentStatusBar } from "./services/EnvironmentStatusBar";
 import { TenantService } from "./services/TenantService";
 import { IIQTreeDataProvider, IIQTreeDragAndDropController } from "./views/IIQTreeDataProvider";
@@ -28,7 +29,7 @@ export interface IIQExtensionApi {
     resourceProvider: IIQResourceProvider;
 }
 
-export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
+export async function activate(context: vscode.ExtensionContext): Promise<IIQExtensionApi> {
     console.log("Activating extension vscode-sailpoint-identityiq");
 
     // Services
@@ -151,6 +152,12 @@ export function activate(context: vscode.ExtensionContext): IIQExtensionApi {
         vscode.commands.registerCommand(COMMANDS.clearFilter,
             (node: ObjectTypeTreeItem) => treeDataProvider.setFilter(node, undefined))
     );
+
+    try {
+        context.subscriptions.push(await registerIdentityIqMcp(context, tenantService));
+    } catch (error) {
+        console.error("Failed to start the IdentityIQ MCP bridge", error);
+    }
 
     return { tenantService, treeDataProvider, resourceProvider };
 }

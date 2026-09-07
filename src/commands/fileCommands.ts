@@ -22,15 +22,14 @@ export class FileCommands {
      * Entry points: command palette / editor context menu.
      */
     public async importFile(uri?: vscode.Uri): Promise<void> {
-        const tenant = this.tenantService.getActiveTenant()
-            ?? await chooseTenant(this.tenantService, "Import file(s)");
-        if (!tenant) {
-            return;
-        }
-
         const fileUri = uri ?? vscode.window.activeTextEditor?.document.uri;
         if (!fileUri || !fileUri.path.toLowerCase().endsWith(".xml")) {
             vscode.window.showWarningMessage("Please open an IdentityIQ XML file first.");
+            return;
+        }
+        // Always confirm the target environment: an import modifies it.
+        const tenant = await chooseTenant(this.tenantService, "Import file(s)");
+        if (!tenant) {
             return;
         }
         await this.doImport(tenant, [fileUri]);

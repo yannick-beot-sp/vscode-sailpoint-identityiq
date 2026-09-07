@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>sailpoint</groupId>
-            <artifactId>iiq</artifactId>
+            <artifactId>identityiq</artifactId>
             <version>8.5</version>
             <scope>provided</scope>
         </dependency>
