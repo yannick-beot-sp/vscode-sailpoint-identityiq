@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.2.0 - 2026-09-07
+
+
 ### Added
 
 - Local MCP server (stdio) for Cursor and VS Code Copilot, auto-registered when the extension activates. Agents can get/import/delete objects, list tenants, ping, run rules and tasks, test applications, and tail/configure logs. An optional `tenant` argument selects the environment by friendly name or a unique URL substring; otherwise the active environment is used. Credentials stay in VS Code Secret Storage: a loopback HTTP bridge in the extension host serves the stdio process. `iiq_run_task` waits with progress (2-minute cap, or `wait: false` for fire-and-forget).
