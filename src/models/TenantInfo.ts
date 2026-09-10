@@ -10,6 +10,8 @@ export interface TenantInfo {
     name: string;
     /** Base URL of IdentityIQ, e.g. http://localhost:8080/identityiq */
     url: string;
+    /** Prevents accidental server-side changes. Missing on legacy entries means writable. */
+    readOnly?: boolean;
     type: "TENANT";
 }
 

@@ -70,8 +70,9 @@ Every endpoint is protected with `@RequiredRight("iiqDevToolsAccess")`:
 - To grant access to non-administrators, import an SPRight named
   `iiqDevToolsAccess` and assign it through a capability.
 
-Rule executions and task launches are also written to the audit log
-(actions `iiq-devtools:runRule` / `iiq-devtools:runTask`).
+Rule executions, task launches and `iiq.properties` updates are also written
+to the audit log (actions `iiq-devtools:runRule` / `iiq-devtools:runTask` /
+`iiq-devtools:updateIiqProperties`).
 
 ## Logging
 

@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>vscode-plugin</artifactId>
     <groupId>vscode-plugin</groupId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <name>VSCode Plugin</name>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>

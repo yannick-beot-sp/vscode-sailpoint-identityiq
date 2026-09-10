@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import { DIFF_SCHEME, URI_SCHEME } from "../constants";
-import { buildDiffResourceUri, buildResourceUri, parseResourceUri } from "../utils/UriUtils";
+import { buildConfigUri, buildDiffResourceUri, buildResourceUri, parseIiqUri, parseResourceUri } from "../utils/UriUtils";
 
 suite("UriUtils Test Suite", () => {
 
@@ -57,5 +57,17 @@ suite("UriUtils Test Suite", () => {
     test("parse rejects malformed URIs", () => {
         const uri = buildResourceUri(baseParts).with({ path: "/only-one-segment" });
         assert.throws(() => parseResourceUri(uri));
+    });
+
+    test("config URI round-trip", () => {
+        const uri = buildConfigUri("6f2b8f74-0000-0000-0000-000000000000", "Development");
+        assert.strictEqual(uri.scheme, URI_SCHEME);
+        assert.ok(uri.path.endsWith("/config/iiq.properties"));
+        assert.deepStrictEqual(parseIiqUri(uri), {
+            kind: "config",
+            tenantId: "6f2b8f74-0000-0000-0000-000000000000",
+            tenantName: "Development",
+            fileName: "iiq.properties"
+        });
     });
 });

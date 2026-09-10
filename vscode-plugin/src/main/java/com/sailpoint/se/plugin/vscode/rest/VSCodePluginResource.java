@@ -3,12 +3,17 @@ package com.sailpoint.se.plugin.vscode.rest;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.Reader;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -23,6 +28,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
 
 import javax.ws.rs.Consumes;
@@ -78,6 +85,7 @@ import sailpoint.object.TaskSchedule;
 import sailpoint.rest.BaseResource;
 import sailpoint.rest.plugin.BasePluginResource;
 import sailpoint.rest.plugin.RequiredRight;
+import sailpoint.server.Environment;
 import sailpoint.server.ImportExecutor;
 import sailpoint.server.Importer;
 import sailpoint.tools.GeneralException;
@@ -188,6 +196,93 @@ public class VSCodePluginResource extends BasePluginResource {
             Collections.sort(names);
         }
         return ok(names);
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // 1b. iiq.properties
+    ////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Contents of {@code WEB-INF/classes/iiq.properties}. Used by the
+     * extension's virtual file system to open the file like an object XML.
+     */
+    @GET
+    @Path("system/config")
+    @RequiredRight(ACCESS_RIGHT)
+    public Map<String, Object> getIiqProperties() {
+        LOG.debug("getIiqProperties()");
+        File file = resolveIiqPropertiesFile();
+        if (!file.isFile()) {
+            throw error(Response.Status.NOT_FOUND, "iiq.properties was not found at " + file.getAbsolutePath());
+        }
+        try {
+            return ok(readIiqProperties(file));
+        } catch (IOException e) {
+            LOG.error("Could not read iiq.properties", e);
+            throw error(Response.Status.INTERNAL_SERVER_ERROR, "Could not read iiq.properties: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Metadata of {@code iiq.properties} (size, last modified, etag) for
+     * the virtual file system's {@code stat()} without transferring the body.
+     */
+    @HEAD
+    @Path("system/config")
+    @RequiredRight(ACCESS_RIGHT)
+    public Response headIiqProperties() {
+        LOG.debug("headIiqProperties()");
+        File file = resolveIiqPropertiesFile();
+        if (!file.isFile()) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        try {
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            Response.ResponseBuilder builder = Response.ok()
+                    .header("Content-Length", bytes.length)
+                    .tag(new EntityTag(sha256(bytes)));
+            long modified = file.lastModified();
+            if (modified > 0) {
+                builder.lastModified(new Date(modified));
+            }
+            return builder.build();
+        } catch (IOException e) {
+            LOG.error("Could not stat iiq.properties", e);
+            throw error(Response.Status.INTERNAL_SERVER_ERROR, "Could not read iiq.properties: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Writes {@code WEB-INF/classes/iiq.properties} and reloads the keys
+     * into the live {@code Environment} properties so subsequent
+     * {@code Util.getProperty} / {@code Environment.getProperties} reads
+     * see the new values without a restart. DataSource and other
+     * startup-only settings still require a restart.
+     */
+    @PUT
+    @Path("system/config")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @RequiredRight(ACCESS_RIGHT)
+    public Map<String, Object> putIiqProperties(Map<String, Object> body) {
+        String content = contentFromBody(body);
+        LOG.info("putIiqProperties({} bytes)", content.length());
+        File file = resolveIiqPropertiesFile();
+        try {
+            writeIiqProperties(file, content);
+            int keys = reloadIiqProperties(file);
+            audit("updateIiqProperties", file.getAbsolutePath());
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("path", file.getAbsolutePath());
+            result.put("size", file.length());
+            result.put("reloaded", true);
+            result.put("keys", keys);
+            return ok(result);
+        } catch (WebApplicationException e) {
+            throw e;
+        } catch (IOException e) {
+            LOG.error("Could not write iiq.properties", e);
+            throw error(Response.Status.INTERNAL_SERVER_ERROR, "Could not write iiq.properties: " + e.getMessage());
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -792,6 +887,142 @@ public class VSCodePluginResource extends BasePluginResource {
                 .type(MediaType.APPLICATION_JSON)
                 .entity(Collections.singletonMap("error", message))
                 .build());
+    }
+
+    /**
+     * Extracts the {@code content} property of a JSON request body (used
+     * for {@code iiq.properties}; XML uses {@link #xmlFromBody}).
+     */
+    private static String contentFromBody(Map<String, Object> body) {
+        Object content = body == null ? null : body.get("content");
+        if (!(content instanceof String) || Util.isNullOrEmpty((String) content)) {
+            throw error(Response.Status.BAD_REQUEST,
+                    "The request body must be a JSON object with a non-empty \"content\" string property");
+        }
+        return (String) content;
+    }
+
+    /**
+     * Resolves {@code WEB-INF/classes/iiq.properties} under the IdentityIQ
+     * application home. Canonicalized so the path cannot escape that folder.
+     */
+    private static File resolveIiqPropertiesFile() {
+        String home = Util.getApplicationHome();
+        if (Util.isNullOrEmpty(home)) {
+            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+                    "Could not resolve the IdentityIQ application home");
+        }
+        File classesDir = new File(new File(home, "WEB-INF"), "classes");
+        File file = new File(classesDir, "iiq.properties");
+        try {
+            File canonical = file.getCanonicalFile();
+            File classesCanonical = classesDir.getCanonicalFile();
+            if (canonical.getParentFile() == null
+                    || !canonical.getParentFile().equals(classesCanonical)
+                    || !"iiq.properties".equals(canonical.getName())) {
+                throw error(Response.Status.INTERNAL_SERVER_ERROR,
+                        "Refusing to access a path outside WEB-INF/classes/iiq.properties");
+            }
+            return canonical;
+        } catch (IOException e) {
+            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+                    "Could not resolve iiq.properties: " + e.getMessage());
+        }
+    }
+
+    /** Reads the file as UTF-8, falling back to ISO-8859-1 if it is not valid UTF-8. */
+    private static String readIiqProperties(File file) throws IOException {
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString();
+        } catch (CharacterCodingException e) {
+            return new String(bytes, StandardCharsets.ISO_8859_1);
+        }
+    }
+
+    /** Atomic write of {@code iiq.properties} as UTF-8. */
+    private static void writeIiqProperties(File file, String content) throws IOException {
+        File parent = file.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            throw new IOException("Could not create " + parent.getAbsolutePath());
+        }
+        Path target = file.toPath();
+        Path tmp = target.resolveSibling("iiq.properties.tmp");
+        Files.write(tmp, content.getBytes(StandardCharsets.UTF_8));
+        try {
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * Loads the file and overlays its keys onto the live Environment
+     * properties. Returns the number of keys applied. Runtime-only keys
+     * that are not in the file are left untouched.
+     */
+    private static int reloadIiqProperties(File file) throws IOException {
+        Properties updated = new Properties();
+        try (Reader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
+            updated.load(reader);
+        }
+        Environment env = Environment.getEnvironment();
+        if (env == null) {
+            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+                    "IdentityIQ Environment is not available; iiq.properties was written but not reloaded");
+        }
+        Properties live = findLiveProperties(env);
+        if (live == null) {
+            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+                    "Could not access the live IdentityIQ properties; iiq.properties was written but not reloaded");
+        }
+        Set<String> names = updated.stringPropertyNames();
+        synchronized (live) {
+            for (String name : names) {
+                String value = updated.getProperty(name);
+                if (value != null) {
+                    live.setProperty(name, value);
+                }
+            }
+        }
+        LOG.info("Reloaded {} properties from {}", names.size(), file.getAbsolutePath());
+        return names.size();
+    }
+
+    /**
+     * Locates the live {@link Properties} held by {@link Environment}.
+     * IdentityIQ exposes them as {@code getProperties()}; reflection keeps
+     * the plugin compiling against the public type without depending on a
+     * specific method name at compile time.
+     */
+    private static Properties findLiveProperties(Environment env) {
+        try {
+            Method method = env.getClass().getMethod("getProperties");
+            Object value = method.invoke(env);
+            if (value instanceof Properties) {
+                return (Properties) value;
+            }
+        } catch (ReflectiveOperationException e) {
+            LOG.debug("Environment.getProperties() is not available: {}", e.toString());
+        }
+        for (Method method : env.getClass().getMethods()) {
+            if (method.getParameterCount() == 0 && Properties.class.equals(method.getReturnType())
+                    && method.getName().startsWith("get")) {
+                try {
+                    Object value = method.invoke(env);
+                    if (value instanceof Properties) {
+                        return (Properties) value;
+                    }
+                } catch (ReflectiveOperationException e) {
+                    LOG.debug("Could not invoke {}: {}", method.getName(), e.toString());
+                }
+            }
+        }
+        return null;
     }
 
     /**

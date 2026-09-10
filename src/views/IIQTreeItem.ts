@@ -3,7 +3,7 @@ import { CONTEXT_VALUES } from "../constants";
 import { ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { FolderTreeNode } from "../models/TreeNode";
-import { buildResourceUri } from "../utils/UriUtils";
+import { buildConfigUri, buildResourceUri } from "../utils/UriUtils";
 
 /**
  * Base class of all items displayed in the environment tree view.
@@ -27,10 +27,16 @@ export class TenantTreeItem extends BaseTreeItem {
     constructor(public readonly tenant: TenantInfo, isActive: boolean) {
         super(tenant.name, vscode.TreeItemCollapsibleState.Collapsed);
         this.id = tenant.id;
-        this.contextValue = CONTEXT_VALUES.tenant;
-        this.description = isActive ? `${tenant.url} (active)` : tenant.url;
-        this.tooltip = `${tenant.name}\n${tenant.url}` + (isActive ? "\nActive environment" : "");
-        this.iconPath = new vscode.ThemeIcon("server-environment",
+        this.contextValue = tenant.readOnly
+            ? CONTEXT_VALUES.tenantReadOnly
+            : CONTEXT_VALUES.tenantWritable;
+        const status = [isActive ? "active" : undefined, tenant.readOnly ? "read-only" : undefined]
+            .filter(Boolean).join(", ");
+        this.description = tenant.url + (status ? ` (${status})` : "");
+        this.tooltip = `${tenant.name}\n${tenant.url}`
+            + (isActive ? "\nActive environment" : "")
+            + (tenant.readOnly ? "\nRead-only" : "");
+        this.iconPath = new vscode.ThemeIcon(tenant.readOnly ? "lock" : "server-environment",
             isActive ? new vscode.ThemeColor("charts.green") : undefined);
     }
 }
@@ -96,5 +102,24 @@ export class LoadMoreTreeItem extends BaseTreeItem {
             title: "Load more",
             arguments: [parent]
         };
+    }
+}
+
+/** Leaf for the environment's `iiq.properties`, opened through the virtual FS */
+export class ConfigFileTreeItem extends BaseTreeItem {
+    constructor(public readonly tenant: TenantInfo) {
+        super("iiq.properties", vscode.TreeItemCollapsibleState.None);
+        this.id = `${tenant.id}/config/iiq.properties`;
+        this.contextValue = tenant.readOnly
+            ? CONTEXT_VALUES.configFileReadOnly
+            : CONTEXT_VALUES.configFile;
+        this.tooltip = `IdentityIQ configuration file on ${tenant.name}`;
+        this.resourceUri = buildConfigUri(tenant.id, tenant.name);
+        this.command = {
+            command: "vscode.open",
+            title: "Open",
+            arguments: [this.resourceUri]
+        };
+        this.iconPath = new vscode.ThemeIcon("settings");
     }
 }

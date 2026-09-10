@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { TenantInfo } from "../models/TenantInfo";
 import { getErrorStatus, IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
-import { buildResourceUri } from "../utils/UriUtils";
+import { buildConfigUri, buildResourceUri } from "../utils/UriUtils";
 import { MockPluginServer } from "./mockPluginServer";
 import { getExtensionApi, makeTenant } from "./testHelpers";
 
@@ -421,6 +421,36 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
 
         await client.resetLoggerLevel("org.hibernate.SQL");
         assert.strictEqual(server.getLoggerLevel("org.hibernate.SQL"), undefined);
+    });
+
+    test("UC-35: GET/PUT /system/config reads and writes iiq.properties with reload", async () => {
+        const original = await client.getIiqProperties();
+        assert.ok(original.includes("dataSource.maxWaitTime"));
+
+        const updated = original + "\n# edited from test\n";
+        const before = server.iiqPropertiesReloads;
+        await client.putIiqProperties(updated);
+        assert.strictEqual(server.iiqPropertiesReloads, before + 1);
+        assert.strictEqual(await client.getIiqProperties(), updated);
+
+        const metadata = await client.getIiqPropertiesMetadata();
+        assert.ok(metadata);
+        assert.strictEqual(metadata!.size, Buffer.byteLength(updated, "utf8"));
+    });
+
+    test("UC-35: the iiq:// virtual FS reads and writes iiq.properties", async () => {
+        const uri = buildConfigUri(tenant.id, tenant.name);
+        const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8");
+        assert.ok(content.includes("IdentityIQ configuration") || content.includes("dataSource") || content.length > 0);
+
+        const next = content + "\ncustom.debug=true\n";
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(next, "utf8"));
+        assert.ok(server.iiqProperties.includes("custom.debug=true"));
+        assert.ok(server.iiqPropertiesReloads >= 1);
+
+        const stat = await vscode.workspace.fs.stat(uri);
+        assert.strictEqual(stat.type, vscode.FileType.File);
+        assert.strictEqual(stat.size, Buffer.byteLength(server.iiqProperties, "utf8"));
     });
 
     test("UC-11: opening a virtual document in the editor works end-to-end", async () => {

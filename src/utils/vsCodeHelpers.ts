@@ -14,6 +14,8 @@ export async function confirm(message: string, confirmLabel = "Yes"): Promise<bo
 export interface ChooseTenantOptions {
     /** Environment ids to exclude from the picker (e.g. the source when copying) */
     excludeTenantIds?: string[];
+    /** Return the only environment without prompting. Defaults to true */
+    skipIfOne?: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ export async function chooseTenant(tenantService: TenantService, title: string,
         vscode.window.showWarningMessage("No IdentityIQ environment defined. Please add an environment first.");
         return undefined;
     }
-    if (tenants.length === 1) {
+    if (tenants.length === 1 && (options?.skipIfOne ?? true)) {
         return tenants[0];
     }
     const active = tenantService.getActiveTenant();

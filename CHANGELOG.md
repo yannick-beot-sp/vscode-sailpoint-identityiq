@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Copy name** on an object of the tree view: copies the object name to the clipboard, one name per line when several objects are selected.
+- **iiq.properties**: open and edit the environment configuration file through the virtual file system (`iiq://…/config/iiq.properties`), download it locally, or upload a local copy. Saving or uploading writes `WEB-INF/classes/iiq.properties` on the server and reloads the keys into the live IdentityIQ `Environment`.
 
 ## 1.2.0 - 2026-09-07
 

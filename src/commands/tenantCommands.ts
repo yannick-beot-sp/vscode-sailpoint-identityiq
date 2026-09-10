@@ -16,7 +16,10 @@ import { FolderTreeItem, TenantTreeItem } from "../views/IIQTreeItem";
  */
 export class TenantCommands {
 
-    constructor(private readonly tenantService: TenantService) { }
+    constructor(
+        private readonly tenantService: TenantService,
+        private readonly onReadOnlyChanged?: (tenant: TenantInfo) => void
+    ) { }
 
     /**
      * Adds a new environment: display name, base URL, login and password are
@@ -86,6 +89,7 @@ export class TenantCommands {
             id: crypto.randomUUID(),
             name: (context.displayName as string).trim(),
             url: (context.url as string).trim().replace(/\/+$/, ""),
+            readOnly: true,
             type: "TENANT"
         };
         await this.tenantService.setCredentials(tenant.id, {
@@ -182,6 +186,26 @@ export class TenantCommands {
         if (node?.tenant) {
             await this.tenantService.setActiveTenant(node.tenant);
         }
+    }
+
+    /** Marks an environment as read-only. */
+    public async setReadOnly(node?: TenantTreeItem): Promise<void> {
+        await this.updateReadOnly(node, true);
+    }
+
+    /** Marks an environment as writable. */
+    public async setWritable(node?: TenantTreeItem): Promise<void> {
+        await this.updateReadOnly(node, false);
+    }
+
+    private async updateReadOnly(node: TenantTreeItem | undefined, readOnly: boolean): Promise<void> {
+        const tenant = node?.tenant;
+        if (!tenant || tenant.readOnly === readOnly) {
+            return;
+        }
+        const updated = { ...tenant, readOnly };
+        await this.tenantService.update(updated);
+        this.onReadOnlyChanged?.(updated);
     }
 
     /**
