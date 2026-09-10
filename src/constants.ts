@@ -62,6 +62,7 @@ export const COMMANDS = {
     cloneObject: "iiq.object.clone",
     copyObjectToTenant: "iiq.object.copy-to-tenant",
     copyObjectToTenantView: "iiq.object.copy-to-tenant-view",
+    copyObjectName: "iiq.object.copy-name",
     deleteObject: "iiq.object.delete",
     refresh: "iiq.refresh",
     refreshNode: "iiq.refresh-node",

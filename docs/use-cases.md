@@ -160,6 +160,9 @@ Command `iiq.open-object` (palette or environment context menu):
   (see UC-21 — ids removed by default), file written and opened.
 - `iiq.object.delete` (object context menu): modal confirmation then
   `DELETE /objects/{type}/{name}`; the view is refreshed.
+- `iiq.object.copy-name` (**Copy name**, object context menu): writes the name
+  of the selected object to the clipboard, one name per line when several
+  objects are selected. No server call.
 
 ### UC-14 — Get any object (generic)
 Command `iiq.get-object` (palette or environment context menu): same flow as

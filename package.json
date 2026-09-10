@@ -233,6 +233,12 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.object.copy-name",
+        "title": "Copy name",
+        "category": "IIQ",
+        "icon": "$(copy)"
+      },
+      {
         "command": "iiq.object.delete",
         "title": "Delete object...",
         "category": "IIQ"
@@ -319,6 +325,10 @@
         },
         {
           "command": "iiq.object.copy-to-tenant-view",
+          "when": "false"
+        },
+        {
+          "command": "iiq.object.copy-name",
           "when": "false"
         },
         {
@@ -575,6 +585,11 @@
           "command": "iiq.object.delete",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
           "group": "1_object@4"
+        },
+        {
+          "command": "iiq.object.copy-name",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
+          "group": "2_copy@1"
         }
       ],
       "editor/context": [

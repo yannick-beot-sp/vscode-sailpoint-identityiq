@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Copy name** on an object of the tree view: copies the object name to the clipboard, one name per line when several objects are selected.
+
 ## 1.2.0 - 2026-09-07
 
 
