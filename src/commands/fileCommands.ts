@@ -4,7 +4,7 @@ import { TenantInfo } from "../models/TenantInfo";
 import { IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
 import { getXmlCleaningOptions } from "../utils/configurationUtils";
-import { buildDiffResourceUri } from "../utils/UriUtils";
+import { buildDiffResourceUri, isConfigUri } from "../utils/UriUtils";
 import { chooseTenant, withProgress } from "../utils/vsCodeHelpers";
 import { cleanXml, getObjectInfoFromXml } from "../utils/xmlUtils";
 import { TenantTreeItem } from "../views/IIQTreeItem";
@@ -87,7 +87,7 @@ export class FileCommands {
             return;
         }
         if (editor.document.uri.scheme === URI_SCHEME) {
-            // Virtual document: simply re-read it from the environment
+            // Virtual document (object XML or iiq.properties): re-read from the environment
             await vscode.commands.executeCommand("workbench.action.files.revert");
             return;
         }
@@ -213,7 +213,14 @@ export class FileCommands {
             return await vscode.window.showTextDocument(uri);
         }
         const editor = vscode.window.activeTextEditor;
-        if (!editor || !editor.document.uri.path.toLowerCase().endsWith(".xml")) {
+        if (!editor) {
+            vscode.window.showWarningMessage("Please open an IdentityIQ XML file first.");
+            return undefined;
+        }
+        if (editor.document.uri.scheme === URI_SCHEME && isConfigUri(editor.document.uri)) {
+            return editor;
+        }
+        if (!editor.document.uri.path.toLowerCase().endsWith(".xml")) {
             vscode.window.showWarningMessage("Please open an IdentityIQ XML file first.");
             return undefined;
         }

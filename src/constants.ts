@@ -25,9 +25,13 @@ export const VIEW_ID = "iiq.view.environments";
 export const CONTEXT_VALUES = {
     folder: "iiqFolder",
     tenant: "iiqTenant",
+    tenantReadOnly: "iiqTenantReadOnly",
+    tenantWritable: "iiqTenantWritable",
     objectType: "iiqObjectType",
     object: "iiqObject",
-    loadMore: "iiqLoadMore"
+    loadMore: "iiqLoadMore",
+    configFile: "iiqConfigFile",
+    configFileReadOnly: "iiqConfigFileReadOnly"
 } as const;
 
 /** Commands ids. Must match the `contributes.commands` section of package.json */
@@ -37,6 +41,8 @@ export const COMMANDS = {
     renameTenant: "iiq.tenant.rename",
     testConnection: "iiq.tenant.test-connection",
     setActiveTenant: "iiq.tenant.set-active",
+    setTenantReadOnly: "iiq.tenant.set-readonly",
+    setTenantWritable: "iiq.tenant.set-writable",
     selectEnvironment: "iiq.select-environment",
     addFolder: "iiq.folder.add",
     renameFolder: "iiq.folder.rename",
@@ -57,6 +63,8 @@ export const COMMANDS = {
     tailLogs: "iiq.tail-logs",
     stopTailLogs: "iiq.stop-tail-logs",
     configureLogging: "iiq.configure-logging",
+    downloadConfig: "iiq.config.download",
+    uploadConfig: "iiq.config.upload",
     saveObject: "iiq.object.save",
     saveObjectWithDependencies: "iiq.object.save-with-dependencies",
     cloneObject: "iiq.object.clone",

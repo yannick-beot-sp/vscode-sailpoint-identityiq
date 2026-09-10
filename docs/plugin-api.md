@@ -138,6 +138,48 @@ Response `200`:
 { "result": ["AccountGroup", "ActivityDataSource", "...", "Rule", "TaskDefinition", "TaskResult", "Workflow", "Workgroup", "accesshistory.HistoricalIdentity", "..."] }
 ```
 
+#### `GET /system/config`
+
+Contents of `WEB-INF/classes/iiq.properties`. Used by the virtual file
+system to open the configuration file like an object XML.
+
+Response `200`:
+```json
+{ "result": "# IdentityIQ configuration\\ndataSource.maxWaitTime=10000\\n" }
+```
+
+`result` is the file content as a string (UTF-8; ISO-8859-1 is accepted on
+read when the file is not valid UTF-8). Response `404` if the file is missing.
+
+#### `HEAD /system/config`
+
+Lightweight metadata for the virtual file system's `stat()`: `Content-Length`,
+`Last-Modified`, `ETag` (SHA-256 of the bytes). `404` if the file is missing.
+
+#### `PUT /system/config`
+
+Writes `WEB-INF/classes/iiq.properties` and **reloads** the keys into the
+live `Environment` properties (`Util.getProperty` / `Environment` reads pick
+up the new values without a restart). DataSource and other startup-only
+settings still require a server restart.
+
+Request body: JSON envelope `{ "content": "<file contents>" }`. An empty
+`content` is rejected with `400`.
+
+Response `200`:
+```json
+{
+  "result": {
+    "path": "/opt/tomcat/webapps/identityiq/WEB-INF/classes/iiq.properties",
+    "size": 1234,
+    "reloaded": true,
+    "keys": 42
+  }
+}
+```
+
+Every write is audited (`iiq-devtools:updateIiqProperties`).
+
 ### 2. Generic object CRUD
 
 #### `GET /objects/{ObjectType}`

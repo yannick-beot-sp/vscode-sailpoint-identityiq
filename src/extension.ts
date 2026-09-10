@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { registerBeanshellLanguageSupport } from "./beanshell";
 import { ApplicationCommands } from "./commands/applicationCommands";
+import { ConfigCommands } from "./commands/configCommands";
 import { FileCommands } from "./commands/fileCommands";
 import { FolderCommands } from "./commands/folderCommands";
 import { LogCommands } from "./commands/logCommands";
@@ -52,7 +53,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
     const remoteContentProvider = new IIQRemoteContentProvider(tenantService);
 
     // Commands
-    const tenantCommands = new TenantCommands(tenantService);
+    const tenantCommands = new TenantCommands(tenantService, tenant => {
+        treeDataProvider.refresh();
+        resourceProvider.triggerTenantModified(tenant.id);
+    });
     const folderCommands = new FolderCommands(tenantService);
     const fileCommands = new FileCommands(tenantService);
     const ruleCommands = new RuleCommands(tenantService);
@@ -60,6 +64,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
     const applicationCommands = new ApplicationCommands(tenantService);
     const logCommands = new LogCommands(tenantService);
     const loggingCommands = new LoggingCommands(tenantService);
+    const configCommands = new ConfigCommands(tenantService, uri => resourceProvider.triggerModified(uri));
 
     context.subscriptions.push(
         statusBar,
@@ -84,6 +89,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         vscode.commands.registerCommand(COMMANDS.renameTenant, tenantCommands.renameTenant, tenantCommands),
         vscode.commands.registerCommand(COMMANDS.testConnection, tenantCommands.testConnection, tenantCommands),
         vscode.commands.registerCommand(COMMANDS.setActiveTenant, tenantCommands.setActiveTenant, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.setTenantReadOnly, tenantCommands.setReadOnly, tenantCommands),
+        vscode.commands.registerCommand(COMMANDS.setTenantWritable, tenantCommands.setWritable, tenantCommands),
         vscode.commands.registerCommand(COMMANDS.selectEnvironment, tenantCommands.selectEnvironment, tenantCommands),
 
         // Folders
@@ -127,6 +134,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         vscode.commands.registerCommand(COMMANDS.stopTailLogs, logCommands.stopTailLogs, logCommands),
         vscode.commands.registerCommand(COMMANDS.configureLogging,
             loggingCommands.configureLoggerLevel, loggingCommands),
+
+        vscode.commands.registerCommand(COMMANDS.downloadConfig,
+            configCommands.downloadConfig, configCommands),
+        vscode.commands.registerCommand(COMMANDS.uploadConfig,
+            configCommands.uploadConfig, configCommands),
 
         // Tree view helpers
         vscode.commands.registerCommand(COMMANDS.refresh, () => treeDataProvider.refresh()),

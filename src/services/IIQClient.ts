@@ -327,6 +327,58 @@ export class IIQClient {
     }
 
     /**
+     * Contents of the environment's `WEB-INF/classes/iiq.properties`.
+     */
+    public async getIiqProperties(): Promise<string> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.get<Envelope<string>>("/system/config");
+            return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /**
+     * Metadata of `iiq.properties` (HEAD), used by the virtual file system
+     * for stat without transferring the file.
+     */
+    public async getIiqPropertiesMetadata(): Promise<ObjectMetadata | undefined> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.head("/system/config");
+            const lastModified = response.headers["last-modified"];
+            return {
+                size: parseInt(String(response.headers["content-length"] ?? "0"), 10),
+                modified: lastModified ? new Date(String(lastModified)) : undefined,
+                etag: response.headers["etag"] ? String(response.headers["etag"]) : undefined
+            };
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                return undefined;
+            }
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /**
+     * Writes `iiq.properties` on the server and reloads it into the live
+     * IdentityIQ Environment. The content travels in the `content` property
+     * of a JSON body (same constraint as XML import: non-JSON bodies never
+     * reach the plugin resource).
+     */
+    public async putIiqProperties(content: string): Promise<void> {
+        const client = await this.getAxios();
+        try {
+            await client.put("/system/config", { content }, {
+                headers: { "Content-Type": "application/json" }
+            });
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /**
      * Lists the tailable server log files: the targets of the file-backed
      * appenders of the live Log4j2 configuration.
      */

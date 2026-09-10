@@ -40,6 +40,60 @@ export function buildDiffResourceUri(parts: IIQResourceUriParts): Uri {
     return buildResourceUri(parts, DIFF_SCHEME);
 }
 
+/** Filename of the IdentityIQ configuration file exposed through the virtual FS */
+export const IIQ_CONFIG_FILE = "iiq.properties";
+
+/** Path segment grouping server-side config files (`.../config/iiq.properties`) */
+export const IIQ_CONFIG_SEGMENT = "config";
+
+/**
+ * URI of the environment's `iiq.properties` file:
+ * `iiq://<tenantId>/<tenant display name>/config/iiq.properties`
+ */
+export interface IIQConfigUriParts {
+    kind: "config";
+    tenantId: string;
+    tenantName: string;
+    fileName: typeof IIQ_CONFIG_FILE;
+}
+
+export type IIQUriParts = ({ kind: "object" } & IIQResourceUriParts) | IIQConfigUriParts;
+
+export function buildConfigUri(tenantId: string, tenantName: string, scheme: string = URI_SCHEME): Uri {
+    return Uri.from({
+        scheme,
+        authority: tenantId.toLowerCase(),
+        path: "/" + [tenantName, IIQ_CONFIG_SEGMENT, IIQ_CONFIG_FILE].map(encodePathSegment).join("/")
+    });
+}
+
+/**
+ * Parses a virtual IIQ URI: either an object (`.../<Type>/<id>/<name>.xml`)
+ * or the environment config file (`.../config/iiq.properties`).
+ */
+export function parseIiqUri(uri: Uri): IIQUriParts {
+    const segments = uri.path.split("/").filter(s => s.length > 0).map(decodePathSegment);
+    if (segments.length === 3
+        && segments[1] === IIQ_CONFIG_SEGMENT
+        && segments[2].toLowerCase() === IIQ_CONFIG_FILE) {
+        return {
+            kind: "config",
+            tenantId: uri.authority,
+            tenantName: segments[0],
+            fileName: IIQ_CONFIG_FILE
+        };
+    }
+    return { kind: "object", ...parseResourceUriFromSegments(uri, segments) };
+}
+
+export function isConfigUri(uri: Uri): boolean {
+    try {
+        return parseIiqUri(uri).kind === "config";
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Parses a URI produced by {@link buildResourceUri}.
  * Also accepts the legacy 3-segment form `.../<ObjectType>/<id>.xml`.
@@ -47,6 +101,10 @@ export function buildDiffResourceUri(parts: IIQResourceUriParts): Uri {
  */
 export function parseResourceUri(uri: Uri): IIQResourceUriParts {
     const segments = uri.path.split("/").filter(s => s.length > 0).map(decodePathSegment);
+    return parseResourceUriFromSegments(uri, segments);
+}
+
+function parseResourceUriFromSegments(uri: Uri, segments: string[]): IIQResourceUriParts {
     if (segments.length === 4) {
         return {
             tenantId: uri.authority,

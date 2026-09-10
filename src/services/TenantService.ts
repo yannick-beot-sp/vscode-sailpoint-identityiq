@@ -37,7 +37,8 @@ export class TenantService {
 
     public getRoots(): TreeItemNode[] {
         const roots = this.storage.get<TreeItemNode[]>(TREE_KEY) ?? [];
-        return roots.filter(Boolean).sort(compareByName);
+        const validRoots = roots.filter(Boolean);
+        return normalizeLegacyTenants(validRoots).sort(compareByName);
     }
 
     public getTenants(): TenantInfo[] {
@@ -209,6 +210,18 @@ export class TenantService {
         traverse(this.getRoots());
         return results;
     }
+}
+
+/** Legacy environments predate the read-only flag and remain writable. */
+function normalizeLegacyTenants(items: TreeItemNode[]): TreeItemNode[] {
+    for (const item of items) {
+        if (isTenantInfo(item) && item.readOnly === undefined) {
+            item.readOnly = false;
+        } else if (isFolderTreeNode(item) && item.children) {
+            normalizeLegacyTenants(item.children);
+        }
+    }
+    return items;
 }
 
 function findFirst(items: TreeItemNode[], predicate: (item: TreeItemNode) => boolean): TreeItemNode | undefined {

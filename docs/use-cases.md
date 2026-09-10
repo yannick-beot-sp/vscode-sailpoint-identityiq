@@ -36,6 +36,7 @@ src/
 │   ├── tenantCommands.ts        # add/remove/rename/test/set-active/select environment
 │   ├── folderCommands.ts        # add/rename/remove folder
 │   ├── objectCommands.ts        # open/export/save/delete objects
+│   ├── configCommands.ts        # download/upload/open iiq.properties
 │   ├── ruleCommands.ts          # run a rule and display its result
 │   ├── taskCommands.ts          # run a task, poll its status, preview the TaskResult
 │   ├── applicationCommands.ts   # test connection, peek objects (testConnector)
@@ -140,6 +141,7 @@ an environment (open, export, import, refresh, compare).
   `lastModified`); each object type node has "Sort by name" / "Sort by last
   modification date" context menu entries overriding it per node.
 - Clicking an object opens it through the virtual file system.
+- Each environment also has an **iiq.properties** leaf (see UC-35).
 
 ### UC-11 — Open an object (guided)
 Command `iiq.open-object` (palette or environment context menu):
@@ -319,6 +321,21 @@ Command `iiq.application.peek-objects` (application context menu — inline
 3. the `objects` array of the response is opened as a read-only preview JSON
    document (untitled, `showTextDocument(..., { preview: true })`).
 
+### UC-35 — Edit `iiq.properties`
+- Tree: an **iiq.properties** leaf under each environment opens
+  `iiq://<id>/<Env>/config/iiq.properties` through the virtual file system
+  (read-only when the environment is).
+- Reading performs `GET /system/config`; `stat` uses `HEAD /system/config`.
+- **Saving** the virtual document performs `PUT /system/config`: the plugin
+  writes `WEB-INF/classes/iiq.properties` and reloads the keys into the live
+  `Environment`. DataSource and other startup-only settings still need a
+  restart.
+- **Download iiq.properties...** (`iiq.config.download`): save the current
+  server file locally (no reload).
+- **Upload iiq.properties...** (`iiq.config.upload`): pick a local file,
+  `PUT` it, reload on the server. Also available from the explorer on a
+  `iiq.properties` file. Blocked on read-only environments.
+
 ## 7. Configuration summary
 
 | Setting | Default | Description |
@@ -350,6 +367,8 @@ Command `iiq.application.peek-objects` (application context menu — inline
 | Run task | `iiq.run-task` | task menu (view), palette |
 | Tail server logs | `iiq.tail-logs` | environment menu, palette |
 | Stop tailing server logs | `iiq.stop-tail-logs` | palette, status bar |
+| Download iiq.properties | `iiq.config.download` | environment menu, config leaf, palette |
+| Upload iiq.properties | `iiq.config.upload` | environment menu (writable), config leaf, explorer, palette |
 | Export object | `iiq.object.save` | object menu |
 | Delete object | `iiq.object.delete` | object menu |
 | Refresh / Load more / Sort by... | `iiq.refresh`, `iiq.load-more`, `iiq.sort-by-*` | view |

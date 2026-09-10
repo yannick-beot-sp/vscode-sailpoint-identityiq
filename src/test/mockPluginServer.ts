@@ -59,6 +59,10 @@ export class MockPluginServer {
     /** Explicit level overrides currently set, by logger name */
     private readonly loggerLevels = new Map<string, string>();
 
+    // iiq.properties (contract of docs/plugin-api.md §1b)
+    public iiqProperties = "# IdentityIQ configuration\ndataSource.maxWaitTime=10000\n";
+    public iiqPropertiesReloads = 0;
+
     constructor(
         private readonly username = "spadmin",
         private readonly password = "admin") {
@@ -198,6 +202,12 @@ export class MockPluginServer {
                     identity: this.username
                 }
             });
+            return;
+        }
+
+        // GET|HEAD|PUT /system/config (iiq.properties)
+        if (segments[0] === "system" && segments[1] === "config" && segments.length === 2) {
+            this.handleIiqProperties(req.method ?? "GET", body, res);
             return;
         }
 
@@ -562,6 +572,49 @@ export class MockPluginServer {
         const endTag = `</${objectType}>`;
         const endIndex = fromStart.indexOf(endTag);
         return endIndex === -1 ? fromStart : fromStart.substring(0, endIndex + endTag.length);
+    }
+
+    /** Implements GET/HEAD/PUT /system/config (iiq.properties) */
+    private handleIiqProperties(method: string, body: string, res: http.ServerResponse): void {
+        if (method === "HEAD") {
+            if (this.iiqProperties === undefined) {
+                res.writeHead(404);
+            } else {
+                res.writeHead(200, {
+                    "Content-Length": Buffer.byteLength(this.iiqProperties, "utf8"),
+                    "Last-Modified": new Date().toUTCString(),
+                    "ETag": `"${crypto.createHash("sha256").update(this.iiqProperties).digest("hex")}"`
+                });
+            }
+            res.end();
+            return;
+        }
+        if (method === "GET") {
+            this.json(res, 200, { result: this.iiqProperties });
+            return;
+        }
+        if (method === "PUT") {
+            let content: unknown;
+            try {
+                content = JSON.parse(body).content;
+            } catch {
+                this.json(res, 400, { error: "Invalid JSON" });
+                return;
+            }
+            if (typeof content !== "string" || content.length === 0) {
+                this.json(res, 400, {
+                    error: "The request body must be a JSON object with a non-empty \"content\" string property"
+                });
+                return;
+            }
+            this.iiqProperties = content;
+            this.iiqPropertiesReloads++;
+            this.json(res, 200, {
+                result: { path: "/opt/tomcat/webapps/identityiq/WEB-INF/classes/iiq.properties", size: content.length, reloaded: true, keys: 1 }
+            });
+            return;
+        }
+        this.json(res, 405, { error: `Unsupported method ${method}` });
     }
 
     private json(res: http.ServerResponse, status: number, payload: unknown): void {

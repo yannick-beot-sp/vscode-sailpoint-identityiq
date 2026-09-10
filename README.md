@@ -48,6 +48,10 @@ refresh and compare IIQ objects without leaving your editor.
 - **Import file(s)...** from the editor, from an environment's context menu
   in the tree view (file picker), or from the file explorer (multi-selection,
   folders imported recursively), with a success/error report.
+- **iiq.properties**: listed under each environment; click to edit it through
+  the same virtual file system as objects (`iiq://…/config/iiq.properties`).
+  **Save** writes the file on the server and reloads it. **Download** /
+  **Upload** commands copy it to or from a local file (upload also reloads).
 - **Refresh file from IdentityIQ...**: re-fetch the object of the current XML file.
 - **Compare with IdentityIQ...**: diff the current XML file with its version
   in an environment.

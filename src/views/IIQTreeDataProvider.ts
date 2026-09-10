@@ -6,6 +6,7 @@ import { TenantService } from "../services/TenantService";
 import { getDefaultSort, getPageSize, SortField } from "../utils/configurationUtils";
 import {
     BaseTreeItem,
+    ConfigFileTreeItem,
     FolderTreeItem,
     LoadMoreTreeItem,
     ObjectTreeItem,
@@ -90,15 +91,18 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
             return this.toTreeItems(this.tenantService.getChildren(element.folder.id));
         }
         if (element instanceof TenantTreeItem) {
-            // Object types, in alphabetical order (cf. OBJECT_TYPES)
-            return OBJECT_TYPES.map(definition => {
-                const nodeId = `${element.tenant.id}/${definition.objectType}`;
-                return new ObjectTypeTreeItem(
-                    element.tenant,
-                    definition,
-                    this.getNodeSort(nodeId),
-                    this.nodeStates.get(nodeId)?.query);
-            });
+            // Config file first, then object types in alphabetical order (cf. OBJECT_TYPES)
+            return [
+                new ConfigFileTreeItem(element.tenant),
+                ...OBJECT_TYPES.map(definition => {
+                    const nodeId = `${element.tenant.id}/${definition.objectType}`;
+                    return new ObjectTypeTreeItem(
+                        element.tenant,
+                        definition,
+                        this.getNodeSort(nodeId),
+                        this.nodeStates.get(nodeId)?.query);
+                })
+            ];
         }
         if (element instanceof ObjectTypeTreeItem) {
             return this.getObjectItems(element);

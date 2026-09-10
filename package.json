@@ -99,6 +99,18 @@
         "category": "IIQ"
       },
       {
+        "command": "iiq.tenant.set-readonly",
+        "title": "Set environment read-only",
+        "category": "IIQ",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "iiq.tenant.set-writable",
+        "title": "Set environment writable",
+        "category": "IIQ",
+        "icon": "$(unlock)"
+      },
+      {
         "command": "iiq.select-environment",
         "title": "Select environment...",
         "category": "IIQ"
@@ -208,6 +220,18 @@
         "icon": "$(gear)"
       },
       {
+        "command": "iiq.config.download",
+        "title": "Download iiq.properties...",
+        "category": "IIQ",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "iiq.config.upload",
+        "title": "Upload iiq.properties...",
+        "category": "IIQ",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "iiq.object.save",
         "title": "Export object...",
         "category": "IIQ"
@@ -300,6 +324,14 @@
           "when": "false"
         },
         {
+          "command": "iiq.tenant.set-readonly",
+          "when": "false"
+        },
+        {
+          "command": "iiq.tenant.set-writable",
+          "when": "false"
+        },
+        {
           "command": "iiq.folder.add",
           "when": "false"
         },
@@ -365,7 +397,7 @@
         },
         {
           "command": "iiq.refresh-file",
-          "when": "editorLangId == xml"
+          "when": "editorLangId == xml || (resourceScheme == iiq && resourceFilename == iiq.properties)"
         },
         {
           "command": "iiq.compare-file",
@@ -403,52 +435,72 @@
       "view/item/context": [
         {
           "command": "iiq.tenant.set-active",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "1_environment@1"
         },
         {
           "command": "iiq.select-environment",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "1_environment@2"
         },
         {
           "command": "iiq.tenant.test-connection",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@1"
         },
         {
+          "command": "iiq.tenant.set-readonly",
+          "when": "view == iiq.view.environments && viewItem == iiqTenantWritable",
+          "group": "inline@1"
+        },
+        {
+          "command": "iiq.tenant.set-writable",
+          "when": "view == iiq.view.environments && viewItem == iiqTenantReadOnly",
+          "group": "inline@1"
+        },
+        {
           "command": "iiq.open-object",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@2"
         },
         {
           "command": "iiq.export-objects",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@3"
         },
         {
           "command": "iiq.import-file-view",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@5"
         },
         {
           "command": "iiq.tail-logs",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@6"
         },
         {
           "command": "iiq.configure-logging",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@7"
         },
         {
+          "command": "iiq.config.download",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
+          "group": "2_actions@8"
+        },
+        {
+          "command": "iiq.config.upload",
+          "when": "view == iiq.view.environments && viewItem == iiqTenantWritable",
+          "group": "2_actions@9"
+        },
+        {
           "command": "iiq.tenant.rename",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "3_edit@1"
         },
         {
           "command": "iiq.tenant.remove",
-          "when": "view == iiq.view.environments && viewItem == iiqTenant",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "3_edit@2"
         },
         {
@@ -590,6 +642,16 @@
           "command": "iiq.object.copy-name",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
           "group": "2_copy@1"
+        },
+        {
+          "command": "iiq.config.download",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqConfigFile/",
+          "group": "1_config@1"
+        },
+        {
+          "command": "iiq.config.upload",
+          "when": "view == iiq.view.environments && viewItem == iiqConfigFile",
+          "group": "1_config@2"
         }
       ],
       "editor/context": [
@@ -602,6 +664,16 @@
           "command": "iiq.refresh-file",
           "when": "resourceLangId == xml && resourceScheme == file",
           "group": "iiq@2"
+        },
+        {
+          "command": "iiq.refresh-file",
+          "when": "resourceScheme == iiq && resourceFilename == iiq.properties",
+          "group": "iiq@2"
+        },
+        {
+          "command": "iiq.config.upload",
+          "when": "resourceFilename == iiq.properties && resourceScheme == file",
+          "group": "iiq@1"
         },
         {
           "command": "iiq.compare-file",
@@ -623,6 +695,11 @@
         {
           "command": "iiq.import-file-explorer",
           "when": "resourceLangId == xml || explorerResourceIsFolder",
+          "group": "iiq@1"
+        },
+        {
+          "command": "iiq.config.upload",
+          "when": "resourceFilename == iiq.properties && !explorerResourceIsFolder",
           "group": "iiq@1"
         }
       ]
