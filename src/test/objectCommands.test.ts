@@ -193,3 +193,38 @@ suite("ObjectCommands copy-to-tenant Test Suite", () => {
         });
     });
 });
+
+/**
+ * Command-layer tests for copying object names to the clipboard.
+ */
+suite("ObjectCommands copy-name Test Suite", () => {
+
+    const RULE_DEFINITION = { objectType: "Rule", label: "Rules", icon: "code" };
+    let objectCommands: ObjectCommands;
+    let tenant: TenantInfo;
+
+    suiteSetup(async () => {
+        const api: IIQExtensionApi = await getExtensionApi();
+        objectCommands = new ObjectCommands(api.tenantService, api.treeDataProvider);
+        tenant = makeTenant("https://localhost:8080/identityiq", "Clipboard");
+    });
+
+    const node = (name: string) => new ObjectTreeItem(tenant, RULE_DEFINITION, { id: name, name });
+
+    test("the copy-name command is registered at activation", async () => {
+        const commands = await vscode.commands.getCommands(true);
+        assert.ok(commands.includes(COMMANDS.copyObjectName));
+    });
+
+    test("copies the name of the object to the clipboard", async () => {
+        await objectCommands.copyObjectName(node("My Rule"));
+
+        assert.strictEqual(await vscode.env.clipboard.readText(), "My Rule");
+    });
+
+    test("copies one name per line for a multiple selection", async () => {
+        await objectCommands.copyObjectName(node("First Rule"), [node("First Rule"), node("Second Rule")]);
+
+        assert.strictEqual(await vscode.env.clipboard.readText(), "First Rule\nSecond Rule");
+    });
+});

@@ -1,8 +1,10 @@
 # Testing Strategy
 
 Tests run in a real VS Code extension host (`@vscode/test-cli`, mocha TDD
-style) with `npm test`. They are organized in three levels, all mapped to the
-use cases of [use-cases.md](use-cases.md).
+style) with `npm test`. The host version is pinned in `.vscode-test.mjs` to
+the oldest VS Code supported by the extension (`engines.vscode`). They are
+organized in three levels, all mapped to the use cases of
+[use-cases.md](use-cases.md).
 
 ## 1. Unit tests (no network, no VS Code API beyond types)
 
@@ -24,6 +26,7 @@ extension conforms to the documented contract before the real plugin exists.
 | `src/test/tenantService.test.ts` | UC-01/02/03/05/06 — storage layer: environments and folders (nesting, move, recursive removal), credentials in the **real Secret Storage** of the test host, active environment and events |
 | `src/test/iiqClient.test.ts` | UC-04 (ping, bad credentials, unreachable server), UC-10 (pagination, sorting), UC-11/12 (read/write through the `iiq://` virtual FS, including `vscode.workspace.openTextDocument`; `stat` served by `HEAD` without transferring the body — asserted on the mock's request log), UC-13 (delete), UC-22 (import bundle), UC-30 (run rule with arguments) |
 | `src/test/fileCommands.test.ts` | UC-22 — `iiq.import-file-view` command registration, import from the environment tree view (file dialog stubbed) |
+| `src/test/objectCommands.test.ts` | UC-13 — copy an object to another environment (context menu and drag & drop), **Copy name** (clipboard, single and multiple selection) |
 
 The tests access the extension services through the API returned by
 `activate()` (`IIQExtensionApi` in `src/extension.ts`).

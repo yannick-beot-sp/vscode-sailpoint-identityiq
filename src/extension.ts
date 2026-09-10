@@ -101,6 +101,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         vscode.commands.registerCommand(COMMANDS.copyObjectToTenant, objectCommands.copyObjectToTenant, objectCommands),
         vscode.commands.registerCommand(COMMANDS.copyObjectToTenantView,
             objectCommands.copyObjectToTenantFromView, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.copyObjectName, objectCommands.copyObjectName, objectCommands),
         vscode.commands.registerCommand(COMMANDS.deleteObject, objectCommands.deleteObject, objectCommands),
 
         // Files

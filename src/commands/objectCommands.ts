@@ -353,6 +353,22 @@ export class ObjectCommands {
         });
     }
 
+    /**
+     * Copies the name of the selected object(s) to the clipboard.
+     * With a multiple selection, the names are copied one per line.
+     */
+    public async copyObjectName(node: ObjectTreeItem, selection?: ObjectTreeItem[]): Promise<void> {
+        const nodes = selection?.length ? selection : (node ? [node] : []);
+        const names = nodes.map(item => item.object.name);
+        if (names.length === 0) {
+            return;
+        }
+        await vscode.env.clipboard.writeText(names.join("\n"));
+        vscode.window.setStatusBarMessage(names.length === 1
+            ? `Copied "${names[0]}" to the clipboard.`
+            : `Copied ${names.length} names to the clipboard.`, 3000);
+    }
+
     /** Deletes an object from the tree view, after confirmation */
     public async deleteObject(node: ObjectTreeItem): Promise<void> {
         if (!await confirm(
