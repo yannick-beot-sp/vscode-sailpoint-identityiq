@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Copy name** on an object of the tree view: copies the object name to the clipboard, one name per line when several objects are selected.
 - **iiq.properties**: open and edit the environment configuration file through the virtual file system (`iiq://…/config/iiq.properties`), download it locally, or upload a local copy. Saving or uploading writes `WEB-INF/classes/iiq.properties` on the server and reloads the keys into the live IdentityIQ `Environment`.
+- **Read-only environments**: new environments start as read-only (lock icon). Toggle with **Set environment writable** / **Set environment read-only** on the tree. Objects and `iiq.properties` opened from a read-only environment cannot be saved or deleted; uploading `iiq.properties` is blocked. Existing environments stay writable until you lock them.
 
 ## 1.2.0 - 2026-09-07
 
