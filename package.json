@@ -23,6 +23,7 @@
   },
   "activationEvents": [
     "onFileSystem:iiq",
+    "onCustomEditor:iiq.identityViewer",
     "onLanguage:xml",
     "onStartupFinished"
   ],
@@ -59,6 +60,18 @@
         }
       ]
     },
+    "customEditors": [
+      {
+        "viewType": "iiq.identityViewer",
+        "displayName": "Identity View",
+        "selector": [
+          {
+            "filenamePattern": "iiq:/**/Identity/**/*.xml"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "iiq.view.environments",
@@ -203,6 +216,24 @@
         "icon": "$(open-preview)"
       },
       {
+        "command": "iiq.identity.view",
+        "title": "View Identity",
+        "category": "IIQ",
+        "icon": "$(person)"
+      },
+      {
+        "command": "iiq.identity.view-xml",
+        "title": "View XML",
+        "category": "IIQ",
+        "icon": "$(code)"
+      },
+      {
+        "command": "iiq.identity.refresh",
+        "title": "Refresh Identity",
+        "category": "IIQ",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "iiq.tail-logs",
         "title": "Tail server logs...",
         "category": "IIQ",
@@ -220,14 +251,20 @@
         "icon": "$(gear)"
       },
       {
-        "command": "iiq.config.download",
-        "title": "Download iiq.properties...",
+        "command": "iiq.log4j.open",
+        "title": "Open the Log4j2 configuration...",
+        "category": "IIQ",
+        "icon": "$(settings)"
+      },
+      {
+        "command": "iiq.log4j.download",
+        "title": "Download the Log4j2 configuration...",
         "category": "IIQ",
         "icon": "$(cloud-download)"
       },
       {
-        "command": "iiq.config.upload",
-        "title": "Upload iiq.properties...",
+        "command": "iiq.log4j.upload",
+        "title": "Upload a Log4j2 configuration...",
         "category": "IIQ",
         "icon": "$(cloud-upload)"
       },
@@ -261,6 +298,12 @@
         "title": "Copy name",
         "category": "IIQ",
         "icon": "$(copy)"
+      },
+      {
+        "command": "iiq.object.open-in-ui",
+        "title": "Open in IdentityIQ...",
+        "category": "IIQ",
+        "icon": "$(link-external)"
       },
       {
         "command": "iiq.object.delete",
@@ -364,6 +407,10 @@
           "when": "false"
         },
         {
+          "command": "iiq.object.open-in-ui",
+          "when": "false"
+        },
+        {
           "command": "iiq.refresh-node",
           "when": "false"
         },
@@ -397,7 +444,7 @@
         },
         {
           "command": "iiq.refresh-file",
-          "when": "editorLangId == xml || (resourceScheme == iiq && resourceFilename == iiq.properties)"
+          "when": "editorLangId == xml || (resourceScheme == iiq && resourceFilename =~ /^log4j2?\\./)"
         },
         {
           "command": "iiq.compare-file",
@@ -406,6 +453,18 @@
         {
           "command": "iiq.preview-workflow",
           "when": "iiq.isWorkflow"
+        },
+        {
+          "command": "iiq.identity.view",
+          "when": "false"
+        },
+        {
+          "command": "iiq.identity.view-xml",
+          "when": "false"
+        },
+        {
+          "command": "iiq.identity.refresh",
+          "when": "false"
         }
       ],
       "editor/title": [
@@ -413,6 +472,21 @@
           "command": "iiq.preview-workflow",
           "when": "resourceLangId == xml && iiq.isWorkflow",
           "group": "navigation"
+        },
+        {
+          "command": "iiq.identity.view",
+          "when": "resourceScheme == iiq && resourceLangId == xml && resourceDirname =~ /\\/Identity\\//",
+          "group": "navigation@1"
+        },
+        {
+          "command": "iiq.identity.view-xml",
+          "when": "activeCustomEditorId == iiq.identityViewer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "iiq.identity.refresh",
+          "when": "activeCustomEditorId == iiq.identityViewer",
+          "group": "navigation@2"
         }
       ],
       "view/title": [
@@ -484,14 +558,19 @@
           "group": "2_actions@7"
         },
         {
-          "command": "iiq.config.download",
+          "command": "iiq.log4j.open",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@8"
         },
         {
-          "command": "iiq.config.upload",
-          "when": "view == iiq.view.environments && viewItem == iiqTenantWritable",
+          "command": "iiq.log4j.download",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@9"
+        },
+        {
+          "command": "iiq.log4j.upload",
+          "when": "view == iiq.view.environments && viewItem == iiqTenantWritable",
+          "group": "2_actions@10"
         },
         {
           "command": "iiq.tenant.rename",
@@ -619,6 +698,11 @@
           "group": "1_object@1"
         },
         {
+          "command": "iiq.identity.view-xml",
+          "when": "view == iiq.view.environments && viewItem == iiqObject-Identity",
+          "group": "0_run@1"
+        },
+        {
           "command": "iiq.object.save-with-dependencies",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-/",
           "group": "1_object@1.5"
@@ -644,13 +728,18 @@
           "group": "2_copy@1"
         },
         {
-          "command": "iiq.config.download",
-          "when": "view == iiq.view.environments && viewItem =~ /^iiqConfigFile/",
+          "command": "iiq.object.open-in-ui",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqObject-(Application|Bundle|Identity|TaskDefinition|Workgroup|Workflow)$/",
+          "group": "2_copy@2"
+        },
+        {
+          "command": "iiq.log4j.download",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqLog4jConfig/",
           "group": "1_config@1"
         },
         {
-          "command": "iiq.config.upload",
-          "when": "view == iiq.view.environments && viewItem == iiqConfigFile",
+          "command": "iiq.log4j.upload",
+          "when": "view == iiq.view.environments && viewItem == iiqLog4jConfig",
           "group": "1_config@2"
         }
       ],
@@ -667,12 +756,12 @@
         },
         {
           "command": "iiq.refresh-file",
-          "when": "resourceScheme == iiq && resourceFilename == iiq.properties",
+          "when": "resourceScheme == iiq && resourceFilename =~ /^log4j2?\\./",
           "group": "iiq@2"
         },
         {
-          "command": "iiq.config.upload",
-          "when": "resourceFilename == iiq.properties && resourceScheme == file",
+          "command": "iiq.log4j.upload",
+          "when": "resourceFilename =~ /^log4j2?\\./ && resourceScheme == file",
           "group": "iiq@1"
         },
         {
@@ -698,8 +787,8 @@
           "group": "iiq@1"
         },
         {
-          "command": "iiq.config.upload",
-          "when": "resourceFilename == iiq.properties && !explorerResourceIsFolder",
+          "command": "iiq.log4j.upload",
+          "when": "resourceFilename =~ /^log4j2?\\./ && !explorerResourceIsFolder",
           "group": "iiq@1"
         }
       ]

@@ -228,3 +228,66 @@ suite("ObjectCommands copy-name Test Suite", () => {
         assert.strictEqual(await vscode.env.clipboard.readText(), "First Rule\nSecond Rule");
     });
 });
+
+/**
+ * Command-layer tests for opening an object in the IdentityIQ desktop UI.
+ */
+suite("ObjectCommands open-in-ui Test Suite", () => {
+
+    const APP_DEFINITION = { objectType: "Application", label: "Applications", icon: "plug" };
+    const RULE_DEFINITION = { objectType: "Rule", label: "Rules", icon: "code" };
+    let objectCommands: ObjectCommands;
+    let tenant: TenantInfo;
+
+    suiteSetup(async () => {
+        const api: IIQExtensionApi = await getExtensionApi();
+        objectCommands = new ObjectCommands(api.tenantService, api.treeDataProvider);
+        tenant = makeTenant("https://localhost:8080/identityiq", "UI");
+    });
+
+    test("the open-in-ui command is registered at activation", async () => {
+        const commands = await vscode.commands.getCommands(true);
+        assert.ok(commands.includes(COMMANDS.openObjectInUi));
+    });
+
+    test("opens the application editor URL in the system browser", async () => {
+        const opened: vscode.Uri[] = [];
+        const originalOpenExternal = vscode.env.openExternal;
+        vscode.env.openExternal = (async (target: vscode.Uri) => {
+            opened.push(target);
+            return true;
+        }) as typeof vscode.env.openExternal;
+        try {
+            await objectCommands.openObjectInUi(new ObjectTreeItem(tenant, APP_DEFINITION, {
+                id: "app-id",
+                name: "HR"
+            }));
+        } finally {
+            vscode.env.openExternal = originalOpenExternal;
+        }
+
+        assert.strictEqual(opened.length, 1);
+        assert.strictEqual(
+            opened[0].toString(true),
+            "https://localhost:8080/identityiq/define/applications/application.jsf?appId=app-id&forceLoad=true");
+    });
+
+    test("does not open a browser for types without a desktop page", async () => {
+        const opened: vscode.Uri[] = [];
+        const originalOpenExternal = vscode.env.openExternal;
+        vscode.env.openExternal = (async (target: vscode.Uri) => {
+            opened.push(target);
+            return true;
+        }) as typeof vscode.env.openExternal;
+        try {
+            await objectCommands.openObjectInUi(new ObjectTreeItem(tenant, RULE_DEFINITION, {
+                id: "rule-id",
+                name: "My Rule"
+            }));
+        } finally {
+            vscode.env.openExternal = originalOpenExternal;
+        }
+
+        assert.strictEqual(opened.length, 0);
+    });
+});

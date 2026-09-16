@@ -2,6 +2,13 @@ import * as crypto from "crypto";
 import * as http from "http";
 import { AddressInfo } from "net";
 import { EXPECTED_API_VERSION, PLUGIN_REST_BASE_PATH } from "../constants";
+import {
+    DetailObjectType,
+    IdentitySection,
+    IdentityView,
+    isDetailObjectType,
+    ObjectSummaryView
+} from "../identity/identityViewModel";
 import { stripXmlEnvelope } from "../utils/xmlUtils";
 
 /**
@@ -59,9 +66,16 @@ export class MockPluginServer {
     /** Explicit level overrides currently set, by logger name */
     private readonly loggerLevels = new Map<string, string>();
 
-    // iiq.properties (contract of docs/plugin-api.md §1b)
-    public iiqProperties = "# IdentityIQ configuration\ndataSource.maxWaitTime=10000\n";
-    public iiqPropertiesReloads = 0;
+    // Log4j2 configuration file (contract of docs/plugin-api.md §1b)
+    public log4jConfigFileName = "log4j2.properties";
+    public log4jConfig: string | undefined = "rootLogger.level = warn\n";
+    public log4jReconfigurations = 0;
+
+    // Identity View (contract of docs/identity-webview.md)
+    /** Identity View cubes, by identity name */
+    private readonly identityViews = new Map<string, IdentityView>();
+    /** Drawer summaries, by `${objectType}:${name}` */
+    private readonly objectSummaries = new Map<string, ObjectSummaryView>();
 
     constructor(
         private readonly username = "spadmin",
@@ -86,6 +100,128 @@ export class MockPluginServer {
     /** Seeds an object without going through the import endpoint */
     public seed(objectType: string, name: string, xml?: string): void {
         this.store(objectType, name, xml ?? `<${objectType} name="${name}"/>`);
+    }
+
+    /**
+     * Seeds an Identity and its Identity View cube. The default cube covers
+     * every renderer of the webview: the four attribute types, an account,
+     * assigned/detected/negative roles, an entitlement, direct and inherited
+     * capabilities, a workgroup membership, and a matching QuickLink.
+     */
+    public seedIdentityView(name: string, overrides: Partial<IdentityView> = {}): IdentityView {
+        this.seed("Identity", name, `<Identity name="${name}"/>`);
+        const stored = this.find("Identity", name)!;
+        const view: IdentityView = {
+            id: stored.id,
+            name,
+            displayName: `${name} Display`,
+            email: `${name}@example.com`,
+            type: "employee",
+            inactive: false,
+            correlated: true,
+            protected: false,
+            manager: { id: "manager-id", name: "manager.name", displayName: "Manager Name" },
+            lastRefresh: "2026-01-15T10:12:00Z",
+            lastLogin: "2026-02-01T08:30:00Z",
+            attributes: [
+                { name: "firstname", label: "First name", type: "string", value: "Ada" },
+                { name: "vip", label: "VIP", type: "boolean", value: false },
+                { name: "startDate", label: "Start date", type: "date", value: "2020-03-01T00:00:00Z" },
+                {
+                    name: "administrator", label: "Administrator", type: "identity", value: "manager.name",
+                    identity: { name: "manager.name", displayName: "Manager Name" }
+                }
+            ],
+            accounts: [
+                { application: "Active Directory", nativeIdentity: `CN=${name},DC=example`, disabled: false }
+            ],
+            roles: [
+                {
+                    name: "Employee", type: "business", assigned: true, detected: true,
+                    negative: false, source: "LCM", classifications: ["SOX"]
+                },
+                {
+                    name: "Contractor", type: "organizational", assigned: false, detected: false,
+                    negative: true, assignmentId: "assign-1"
+                }
+            ],
+            entitlements: [
+                {
+                    application: "Active Directory",
+                    nativeIdentity: `CN=${name},DC=example`,
+                    type: "group", name: "memberOf",
+                    value: "CN=Finance", grantedByRole: "Employee",
+                    classifications: ["PCI"]
+                }
+            ],
+            capabilities: [
+                { name: "SystemAdministrator", inherited: false, workgroups: [] },
+                { name: "Certifier", inherited: true, workgroups: ["IT Admins"] }
+            ],
+            workgroups: [
+                {
+                    name: "IT Admins", displayName: "IT Admins",
+                    description: "Infrastructure team", capabilities: ["Certifier"]
+                }
+            ],
+            quicklinks: [
+                {
+                    name: "Manage User Access", category: "Tasks", action: "manageAccess",
+                    disabled: false,
+                    populations: [{ name: "Everyone", description: "All identities" }]
+                }
+            ],
+            ...overrides
+        };
+        // Accounts carry the id of their Link, which is what an account
+        // detail drawer resolves: seed the matching detail alongside them.
+        for (const account of view.accounts) {
+            account.id = this.seedObjectSummary("Link", account.nativeIdentity, {
+                application: account.application,
+                disabled: account.disabled
+            }).id;
+        }
+        this.identityViews.set(name, view);
+        return view;
+    }
+
+    /**
+     * Seeds the lazy summary a detail drawer loads for a Bundle, a
+     * ManagedAttribute or an account (Link). An account carries no owner or
+     * description but the attributes the connector aggregated.
+     */
+    public seedObjectSummary(
+        objectType: DetailObjectType,
+        name: string,
+        overrides: Partial<ObjectSummaryView> = {}
+    ): ObjectSummaryView {
+        this.seed(objectType, name, `<${objectType} name="${name}"/>`);
+        const specific: Partial<ObjectSummaryView> = objectType === "Link"
+            ? {
+                application: "Active Directory",
+                disabled: false,
+                locked: false,
+                manuallyCorrelated: false,
+                lastRefresh: "2026-02-01T08:30:00Z",
+                attributes: [
+                    { name: "sAMAccountName", label: "Account name", type: "string", value: name },
+                    { name: "memberOf", type: "string", value: "CN=Finance,DC=example" }
+                ]
+            }
+            : {
+                type: objectType === "Bundle" ? "business" : "group",
+                owner: { name: "spadmin", displayName: "The Administrator" },
+                description: `Summary of ${name}`
+            };
+        const summary: ObjectSummaryView = {
+            id: this.find(objectType, name)!.id,
+            name,
+            displayName: name,
+            ...specific,
+            ...overrides
+        };
+        this.objectSummaries.set(`${objectType}:${name}`, summary);
+        return summary;
     }
 
     /** Declares a tailable log file (a file-backed appender server-side) */
@@ -205,15 +341,29 @@ export class MockPluginServer {
             return;
         }
 
-        // GET|HEAD|PUT /system/config (iiq.properties)
-        if (segments[0] === "system" && segments[1] === "config" && segments.length === 2) {
-            this.handleIiqProperties(req.method ?? "GET", body, res);
+        // GET|HEAD|PUT /system/log4j (Log4j2 configuration file)
+        if (segments[0] === "system" && segments[1] === "log4j" && segments.length === 2) {
+            this.handleLog4jConfig(req.method ?? "GET", body, res);
             return;
         }
 
         // GET /objects/{type}
         if (req.method === "GET" && segments[0] === "objects" && segments.length === 2) {
             this.list(segments[1], url.searchParams, res);
+            return;
+        }
+
+        // GET /identities/{nameOrId}/view[?section=]
+        if (req.method === "GET" && segments[0] === "identities"
+            && segments.length === 3 && segments[2] === "view") {
+            this.identityView(segments[1], url.searchParams.get("section"), res);
+            return;
+        }
+
+        // GET /objects/{Bundle|ManagedAttribute}/{nameOrId}/summary
+        if (req.method === "GET" && segments[0] === "objects"
+            && segments.length === 4 && segments[3] === "summary") {
+            this.objectSummary(segments[1], segments[2], res);
             return;
         }
 
@@ -377,6 +527,51 @@ export class MockPluginServer {
         }
 
         this.json(res, 404, { error: `Unknown endpoint ${req.method} ${url.pathname}` });
+    }
+
+    /**
+     * Implements GET /identities/{nameOrId}/view (docs/identity-webview.md).
+     * A `section` request keeps the header fields and populates only that
+     * section, which is all a tab refresh consumes.
+     */
+    private identityView(nameOrId: string, section: string | null, res: http.ServerResponse): void {
+        const stored = this.find("Identity", nameOrId);
+        const view = stored ? this.identityViews.get(stored.name) : undefined;
+        if (!view) {
+            this.json(res, 404, { error: `Identity "${nameOrId}" not found` });
+            return;
+        }
+        if (section === null) {
+            this.json(res, 200, { result: view });
+            return;
+        }
+        if (!(section in view) || !Array.isArray((view as unknown as Record<string, unknown>)[section])) {
+            this.json(res, 400, { error: `Unknown section "${section}"` });
+            return;
+        }
+        this.json(res, 200, {
+            result: {
+                ...view,
+                attributes: [], accounts: [], roles: [],
+                entitlements: [], capabilities: [], workgroups: [], quicklinks: [],
+                [section as IdentitySection]: view[section as IdentitySection]
+            }
+        });
+    }
+
+    /** Implements the drawer summary endpoints (docs/identity-webview.md) */
+    private objectSummary(objectType: string, nameOrId: string, res: http.ServerResponse): void {
+        if (!isDetailObjectType(objectType)) {
+            this.json(res, 404, { error: `Summaries are not supported for ${objectType}` });
+            return;
+        }
+        const stored = this.find(objectType, nameOrId);
+        const summary = stored ? this.objectSummaries.get(`${objectType}:${stored.name}`) : undefined;
+        if (!summary) {
+            this.json(res, 404, { error: `${objectType} "${nameOrId}" not found` });
+            return;
+        }
+        this.json(res, 200, { result: summary });
     }
 
     /** Answers a testConnector preview call with the ExtJS grid JSON shape used by IdentityIQ */
@@ -574,23 +769,29 @@ export class MockPluginServer {
         return endIndex === -1 ? fromStart : fromStart.substring(0, endIndex + endTag.length);
     }
 
-    /** Implements GET/HEAD/PUT /system/config (iiq.properties) */
-    private handleIiqProperties(method: string, body: string, res: http.ServerResponse): void {
+    /** Implements GET/HEAD/PUT /system/log4j (Log4j2 configuration file) */
+    private handleLog4jConfig(method: string, body: string, res: http.ServerResponse): void {
+        const path = `/opt/tomcat/webapps/identityiq/WEB-INF/classes/${this.log4jConfigFileName}`;
         if (method === "HEAD") {
-            if (this.iiqProperties === undefined) {
+            if (this.log4jConfig === undefined) {
                 res.writeHead(404);
             } else {
                 res.writeHead(200, {
-                    "Content-Length": Buffer.byteLength(this.iiqProperties, "utf8"),
+                    "Content-Length": Buffer.byteLength(this.log4jConfig, "utf8"),
                     "Last-Modified": new Date().toUTCString(),
-                    "ETag": `"${crypto.createHash("sha256").update(this.iiqProperties).digest("hex")}"`
+                    "X-IIQ-File-Name": this.log4jConfigFileName,
+                    "ETag": `"${crypto.createHash("sha256").update(this.log4jConfig).digest("hex")}"`
                 });
             }
             res.end();
             return;
         }
         if (method === "GET") {
-            this.json(res, 200, { result: this.iiqProperties });
+            if (this.log4jConfig === undefined) {
+                this.json(res, 404, { error: "The Log4j2 configuration file was not found" });
+                return;
+            }
+            this.json(res, 200, { result: this.log4jConfig, fileName: this.log4jConfigFileName, path });
             return;
         }
         if (method === "PUT") {
@@ -607,10 +808,10 @@ export class MockPluginServer {
                 });
                 return;
             }
-            this.iiqProperties = content;
-            this.iiqPropertiesReloads++;
+            this.log4jConfig = content;
+            this.log4jReconfigurations++;
             this.json(res, 200, {
-                result: { path: "/opt/tomcat/webapps/identityiq/WEB-INF/classes/iiq.properties", size: content.length, reloaded: true, keys: 1 }
+                result: { path, fileName: this.log4jConfigFileName, size: content.length, reloaded: true }
             });
             return;
         }

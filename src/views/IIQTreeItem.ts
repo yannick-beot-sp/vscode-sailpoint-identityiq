@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-import { CONTEXT_VALUES } from "../constants";
+import { COMMANDS, CONTEXT_VALUES } from "../constants";
 import { ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { FolderTreeNode } from "../models/TreeNode";
-import { buildConfigUri, buildResourceUri } from "../utils/UriUtils";
+import { buildResourceUri } from "../utils/UriUtils";
 
 /**
  * Base class of all items displayed in the environment tree view.
@@ -105,20 +105,23 @@ export class LoadMoreTreeItem extends BaseTreeItem {
     }
 }
 
-/** Leaf for the environment's `iiq.properties`, opened through the virtual FS */
-export class ConfigFileTreeItem extends BaseTreeItem {
+/**
+ * Leaf for the environment's Log4j2 configuration file, opened through the
+ * virtual FS. The real file name is only known once the server answers, so
+ * the leaf delegates to a command instead of opening a URI directly.
+ */
+export class Log4jConfigTreeItem extends BaseTreeItem {
     constructor(public readonly tenant: TenantInfo) {
-        super("iiq.properties", vscode.TreeItemCollapsibleState.None);
-        this.id = `${tenant.id}/config/iiq.properties`;
+        super("Log4j2 configuration", vscode.TreeItemCollapsibleState.None);
+        this.id = `${tenant.id}/config/log4j`;
         this.contextValue = tenant.readOnly
-            ? CONTEXT_VALUES.configFileReadOnly
-            : CONTEXT_VALUES.configFile;
-        this.tooltip = `IdentityIQ configuration file on ${tenant.name}`;
-        this.resourceUri = buildConfigUri(tenant.id, tenant.name);
+            ? CONTEXT_VALUES.log4jConfigReadOnly
+            : CONTEXT_VALUES.log4jConfig;
+        this.tooltip = `Log4j2 configuration file of ${tenant.name}`;
         this.command = {
-            command: "vscode.open",
+            command: COMMANDS.openLog4jConfig,
             title: "Open",
-            arguments: [this.resourceUri]
+            arguments: [this]
         };
         this.iconPath = new vscode.ThemeIcon("settings");
     }

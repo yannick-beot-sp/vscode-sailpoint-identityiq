@@ -138,30 +138,50 @@ Response `200`:
 { "result": ["AccountGroup", "ActivityDataSource", "...", "Rule", "TaskDefinition", "TaskResult", "Workflow", "Workgroup", "accesshistory.HistoricalIdentity", "..."] }
 ```
 
-#### `GET /system/config`
+#### `GET /system/log4j`
 
-Contents of `WEB-INF/classes/iiq.properties`. Used by the virtual file
-system to open the configuration file like an object XML.
+Contents of the file backing the **live Log4j2 configuration**, usually
+`WEB-INF/classes/log4j2.properties`. Used by the virtual file system to open
+the logging configuration like an object XML.
+
+The file is resolved from the live `ConfigurationSource`, so a relocated file
+or an XML/YAML/JSON configuration is honored; when the configuration source
+is not file-backed, the conventional names are tried under
+`WEB-INF/classes` (`log4j2.properties`, `log4j2.xml`, `log4j2.yaml`,
+`log4j2.yml`, `log4j2.json`, `log4j.properties`). A path is never accepted
+as input.
 
 Response `200`:
 ```json
-{ "result": "# IdentityIQ configuration\\ndataSource.maxWaitTime=10000\\n" }
+{
+  "result": "rootLogger.level = warn\\n",
+  "fileName": "log4j2.properties",
+  "path": "/opt/tomcat/webapps/identityiq/WEB-INF/classes/log4j2.properties"
+}
 ```
 
 `result` is the file content as a string (UTF-8; ISO-8859-1 is accepted on
-read when the file is not valid UTF-8). Response `404` if the file is missing.
+read when the file is not valid UTF-8). `fileName` lets the extension name
+the editor tab after the real file. Response `404` if no file backs the
+configuration.
 
-#### `HEAD /system/config`
+#### `HEAD /system/log4j`
 
 Lightweight metadata for the virtual file system's `stat()`: `Content-Length`,
-`Last-Modified`, `ETag` (SHA-256 of the bytes). `404` if the file is missing.
+`Last-Modified`, `ETag` (SHA-256 of the bytes) and `X-IIQ-File-Name` (the
+real file name, needed before the body is fetched). `404` if the file is
+missing.
 
-#### `PUT /system/config`
+#### `PUT /system/log4j`
 
-Writes `WEB-INF/classes/iiq.properties` and **reloads** the keys into the
-live `Environment` properties (`Util.getProperty` / `Environment` reads pick
-up the new values without a restart). DataSource and other startup-only
-settings still require a server restart.
+Writes the file and **reconfigures the live logger context** from it
+(`LoggerContext.setConfigLocation`), so new levels and appenders apply
+immediately.
+
+If Log4j2 refuses the configuration — detected by the context falling back
+to its default console-only configuration — the previous content is
+restored, reapplied, and the request fails with `400`: a bad edit can never
+leave the server without logging.
 
 Request body: JSON envelope `{ "content": "<file contents>" }`. An empty
 `content` is rejected with `400`.
@@ -170,15 +190,15 @@ Response `200`:
 ```json
 {
   "result": {
-    "path": "/opt/tomcat/webapps/identityiq/WEB-INF/classes/iiq.properties",
+    "path": "/opt/tomcat/webapps/identityiq/WEB-INF/classes/log4j2.properties",
+    "fileName": "log4j2.properties",
     "size": 1234,
-    "reloaded": true,
-    "keys": 42
+    "reloaded": true
   }
 }
 ```
 
-Every write is audited (`iiq-devtools:updateIiqProperties`).
+Every write is audited (`iiq-devtools:updateLog4jConfig`).
 
 ### 2. Generic object CRUD
 
@@ -585,7 +605,165 @@ from its parent logger.
 
 Response `204`, no body.
 
-### 9. Future endpoints (not used by the extension yet)
+### 9. Identity View
+
+Feeds the read-only Identity webview. The payload shapes and the UI behaviour
+they serve are specified in [identity-webview.md](identity-webview.md); this
+section is the REST contract.
+
+#### `GET /identities/{nameOrId}/view`
+
+The identity cube: header fields plus the seven sections
+(`attributes`, `accounts`, `roles`, `entitlements`, `capabilities`,
+`workgroups`, `quicklinks`). The Identity XML is never part of it — the webview fetches it
+separately, through the generic interface, only when the user asks for it.
+
+Query parameters:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `section` | *(none)* | Populates only that section, for a tab refresh. One of the seven section names. |
+
+```json
+{
+  "result": {
+    "id": "0a0000…", "name": "ada.lovelace", "displayName": "Ada Lovelace",
+    "email": "ada@example.com", "type": "employee",
+    "inactive": false, "correlated": true, "protected": false,
+    "manager": { "id": "0a0001…", "name": "manager.name", "displayName": "Manager Name" },
+    "lastRefresh": "2026-01-15T10:12:00Z", "lastLogin": "2026-02-01T08:30:00Z",
+    "attributes": [
+      { "name": "firstname", "label": "First name", "type": "string", "value": "Ada" }
+    ],
+    "accounts": [
+      { "id": "…", "application": "Active Directory",
+        "nativeIdentity": "CN=Ada,DC=example", "disabled": false }
+    ],
+    "roles": [
+      { "id": "…", "name": "Employee", "type": "business", "assigned": true,
+        "detected": true, "negative": false, "source": "LCM", "assignmentId": "…",
+        "assigner": "spadmin", "parentRoleNames": [], "classifications": ["SOX"] }
+    ],
+    "entitlements": [
+      { "id": "…", "application": "Active Directory",
+        "nativeIdentity": "CN=Ada,DC=example", "type": "Entitlement",
+        "name": "memberOf", "value": "CN=Finance", "grantedByRole": "Employee",
+        "managedAttributeId": "…", "classifications": ["PCI"] }
+    ],
+    "capabilities": [
+      { "name": "Certifier", "inherited": true, "workgroups": ["IT Admins"] }
+    ],
+    "workgroups": [
+      { "id": "…", "name": "IT Admins", "displayName": "IT Admins",
+        "description": "Infrastructure team", "capabilities": ["Certifier"] }
+    ],
+    "quicklinks": [
+      { "id": "…", "name": "Manage User Access", "category": "Tasks",
+        "action": "manageAccess", "disabled": false,
+        "populations": [{ "id": "…", "name": "Everyone", "description": "All identities" }] }
+    ]
+  }
+}
+```
+
+A `section` request answers with this same shape, the header fields filled and
+every section but the requested one empty.
+
+Notes on how the sections are built:
+
+- `attributes` is **flat**: the ObjectConfig definitions in their configured
+  order, then the values the identity carries without a definition, typed from
+  the value. `type` is one of `boolean`, `string`, `date`, `identity`; an
+  `identity` attribute also carries the resolved `identity` reference.
+  `password`, `passwordHistory`, `AuthenticationAnswers`, `VerificationToken`
+  and every attribute declared `secret` are excluded. Standard fields already
+  rendered in the header (`manager`, `lastRefresh`, `lastLogin`, `email`,
+  `displayName`, `type`, `inactive`, `correlated`, `protected`) or as their
+  own tab (`assignedRoles`, `detectedRoles`, `bundles`, `capabilities`,
+  `workgroups`) are excluded too, so they are not shown twice.
+- `accounts` has one entry per `Link`. `id` is the id of the Link, which the
+  account detail endpoint below resolves.
+- `roles` has one entry per role, merging the assigned and detected Bundle
+  lists, the `RoleAssignment`s (provenance, and the negative assignments the
+  stock UI hides) and the `RoleDetection`s. `id` is the id of the **Bundle**,
+  so the detail drawer can resolve it. `type` is the Bundle type, shown on the
+  row; roles known only through an assignment or a detection (a negative
+  assignment, a detection of a role the identity no longer holds) get theirs
+  from one chunked Bundle load, which also fills `classifications` (display
+  names). `parentRoleNames` identifies assignments that granted/detected this
+  role, using permitted assignments and `RoleDetection.assignmentIds`.
+- `entitlements` comes from a projection search on `IdentityEntitlement`,
+  capped at 2000 entries. Rows that are IIQ roles (`assignedRoles`,
+  `detectedRoles`, `bundles`) are excluded: they already have the Roles tab.
+  `nativeIdentity` is the account that holds the entitlement.
+  `managedAttributeId` and `classifications` are resolved in bulk so the
+  drawer opens the right object and the table can show classification badges.
+- `capabilities` lists the **effective** capabilities; `inherited` means
+  "not held directly", and `workgroups` then names the workgroups granting it.
+- `workgroups` carries, per workgroup, the `capabilities` it grants to its
+  members, so the detail drawer shows them without a second request.
+- `quicklinks` lists QuickLinks whose attached `DynamicScope` (population)
+  matches the identity. Membership is `Matchmaker.isMatch` on the scope's
+  `IdentitySelector`; a null selector is treated as everyone. One entry per
+  QuickLink, with only the populations that matched.
+
+Response `400`: unknown `section`. Response `404`: unknown identity.
+
+#### `GET /objects/{Bundle|ManagedAttribute|Link}/{nameOrId}/summary`
+
+Summary loaded lazily by the detail drawer when a role, an entitlement or an
+account is clicked. Only those three types are supported; any other answers
+`404`.
+
+```json
+{
+  "result": {
+    "id": "…", "name": "Employee", "displayName": "Employee",
+    "type": "business",
+    "owner": { "name": "spadmin", "displayName": "The Administrator" },
+    "description": "Base role of every employee",
+    "disabled": false,
+    "classifications": []
+  }
+}
+```
+
+`application` and `value` are filled for a `ManagedAttribute`, `disabled` for
+a `Bundle`. A `ManagedAttribute` is resolved by id, then by name, then by raw
+value (the value is only unique per application: the first match wins, which
+is what the webview falls back to when an entitlement carried no
+`managedAttributeId`).
+
+A `Link` (one account) answers with the account detail instead: it has no
+name, so it is resolved **by id only** — the id the `accounts` section
+carries — and `name` is its native identity.
+
+```json
+{
+  "result": {
+    "id": "…", "name": "CN=Ada,DC=example", "displayName": "Ada Lovelace",
+    "application": "Active Directory", "instance": null,
+    "disabled": false, "locked": false, "manuallyCorrelated": false,
+    "lastRefresh": "2026-02-01T08:30:00Z",
+    "attributes": [
+      { "name": "sAMAccountName", "label": "Account name", "type": "string",
+        "value": "alovelace" },
+      { "name": "memberOf", "type": "string", "value": "CN=Finance,DC=example" }
+    ]
+  }
+}
+```
+
+`attributes` is the flat account attribute list, same shape as the cube
+attributes: the `Link` ObjectConfig definitions the account has a value for
+(one ObjectConfig serves every application, so the others belong to another
+schema), for their labels and declared types, then every other aggregated
+value, typed from the value. `password`, `passwordHistory` and attributes
+declared `secret` are excluded.
+
+Response `404`: unknown object, or unsupported type.
+
+### 10. Future endpoints (not used by the extension yet)
 
 Reserved for future features; do not implement for the MVP:
 

@@ -1,5 +1,5 @@
 import { Uri } from "vscode";
-import { DIFF_SCHEME, URI_SCHEME } from "../constants";
+import { DIFF_SCHEME, LOG4J_CONFIG_FILE, URI_SCHEME } from "../constants";
 
 /**
  * Structure of a resource URI handled by the virtual file system provider:
@@ -40,47 +40,46 @@ export function buildDiffResourceUri(parts: IIQResourceUriParts): Uri {
     return buildResourceUri(parts, DIFF_SCHEME);
 }
 
-/** Filename of the IdentityIQ configuration file exposed through the virtual FS */
-export const IIQ_CONFIG_FILE = "iiq.properties";
-
-/** Path segment grouping server-side config files (`.../config/iiq.properties`) */
+/** Path segment grouping server-side config files (`.../config/log4j2.properties`) */
 export const IIQ_CONFIG_SEGMENT = "config";
 
 /**
- * URI of the environment's `iiq.properties` file:
- * `iiq://<tenantId>/<tenant display name>/config/iiq.properties`
+ * URI of the environment's Log4j2 configuration file:
+ * `iiq://<tenantId>/<tenant display name>/config/<file name>`
  */
 export interface IIQConfigUriParts {
     kind: "config";
     tenantId: string;
     tenantName: string;
-    fileName: typeof IIQ_CONFIG_FILE;
+    fileName: string;
 }
 
 export type IIQUriParts = ({ kind: "object" } & IIQResourceUriParts) | IIQConfigUriParts;
 
-export function buildConfigUri(tenantId: string, tenantName: string, scheme: string = URI_SCHEME): Uri {
+export function buildConfigUri(
+    tenantId: string,
+    tenantName: string,
+    fileName: string = LOG4J_CONFIG_FILE,
+    scheme: string = URI_SCHEME): Uri {
     return Uri.from({
         scheme,
         authority: tenantId.toLowerCase(),
-        path: "/" + [tenantName, IIQ_CONFIG_SEGMENT, IIQ_CONFIG_FILE].map(encodePathSegment).join("/")
+        path: "/" + [tenantName, IIQ_CONFIG_SEGMENT, fileName].map(encodePathSegment).join("/")
     });
 }
 
 /**
  * Parses a virtual IIQ URI: either an object (`.../<Type>/<id>/<name>.xml`)
- * or the environment config file (`.../config/iiq.properties`).
+ * or the environment Log4j2 configuration file (`.../config/<file name>`).
  */
 export function parseIiqUri(uri: Uri): IIQUriParts {
     const segments = uri.path.split("/").filter(s => s.length > 0).map(decodePathSegment);
-    if (segments.length === 3
-        && segments[1] === IIQ_CONFIG_SEGMENT
-        && segments[2].toLowerCase() === IIQ_CONFIG_FILE) {
+    if (segments.length === 3 && segments[1] === IIQ_CONFIG_SEGMENT && segments[2].length > 0) {
         return {
             kind: "config",
             tenantId: uri.authority,
             tenantName: segments[0],
-            fileName: IIQ_CONFIG_FILE
+            fileName: segments[2]
         };
     }
     return { kind: "object", ...parseResourceUriFromSegments(uri, segments) };
@@ -105,17 +104,23 @@ export function parseResourceUri(uri: Uri): IIQResourceUriParts {
 }
 
 function parseResourceUriFromSegments(uri: Uri, segments: string[]): IIQResourceUriParts {
+    const last = segments[segments.length - 1];
+    // Object files always end with .xml so ancestor folders (tenant, type, id)
+    // are not mistaken for resources. VS Code stats those parents before writeFile.
+    if (!last || !/\.xml$/i.test(last)) {
+        throw new Error(`Invalid IdentityIQ resource URI: ${uri.toString()}`);
+    }
     if (segments.length === 4) {
         return {
             tenantId: uri.authority,
             tenantName: segments[0],
             objectType: segments[1],
             objectId: segments[2],
-            objectName: segments[3].replace(/\.xml$/i, "")
+            objectName: last.replace(/\.xml$/i, "")
         };
     }
     if (segments.length === 3) {
-        const idOrName = segments[2].replace(/\.xml$/i, "");
+        const idOrName = last.replace(/\.xml$/i, "");
         return {
             tenantId: uri.authority,
             tenantName: segments[0],

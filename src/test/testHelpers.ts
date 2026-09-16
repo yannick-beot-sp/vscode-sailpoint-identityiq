@@ -21,6 +21,7 @@ export function makeTenant(url: string, namePrefix = "Test"): TenantInfo {
         id,
         name: `${namePrefix} ${id.substring(0, 8)}`,
         url,
+        readOnly: false,
         type: "TENANT"
     };
 }
