@@ -1,13 +1,14 @@
 import * as vscode from "vscode";
 import { OBJECT_TYPES, ObjectSummary } from "../models/ObjectTypes";
+import { TenantInfo } from "../models/TenantInfo";
 import { isFolderTreeNode, isTenantInfo } from "../models/TreeNode";
 import { IIQClient } from "../services/IIQClient";
 import { TenantService } from "../services/TenantService";
 import { getDefaultSort, getPageSize, SortField } from "../utils/configurationUtils";
 import {
     BaseTreeItem,
-    ConfigFileTreeItem,
     FolderTreeItem,
+    Log4jConfigTreeItem,
     LoadMoreTreeItem,
     ObjectTreeItem,
     ObjectTypeTreeItem,
@@ -36,6 +37,13 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
     /** Keyed by object type node id (`<tenantId>/<ObjectType>`) */
     private readonly nodeStates = new Map<string, ObjectTypeNodeState>();
 
+    /**
+     * Last environment item handed out for each tenant id. VS Code resolves the
+     * argument of onDidChangeTreeData by instance, not by id, so refreshing a
+     * single environment requires the very item it is currently displaying.
+     */
+    private readonly tenantItems = new Map<string, TenantTreeItem>();
+
     constructor(private readonly tenantService: TenantService) {
         tenantService.onDidUpdateTree(() => this.refresh());
         tenantService.onDidChangeActiveTenant(() => this.refresh());
@@ -43,8 +51,9 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
 
     public refresh(node?: BaseTreeItem): void {
         if (!node) {
-            // Full refresh: drop the pagination states
+            // Full refresh: drop the pagination states and the stale environment items
             this.nodeStates.clear();
+            this.tenantItems.clear();
         }
         this.onDidChangeTreeDataEmitter.fire(node);
     }
@@ -61,8 +70,7 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
         const state = this.getNodeState(node);
         state.sortBy = sortBy;
         state.limit = getPageSize();
-        // The context value contains the sort order: the node itself must be re-rendered
-        this.onDidChangeTreeDataEmitter.fire(undefined);
+        this.refreshTenant(node.tenant);
     }
 
     /** Filters the objects displayed under the given object type node by name */
@@ -70,8 +78,19 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
         const state = this.getNodeState(node);
         state.query = query;
         state.limit = getPageSize();
-        // The context value contains the filtered state: the node itself must be re-rendered
-        this.onDidChangeTreeDataEmitter.fire(undefined);
+        this.refreshTenant(node.tenant);
+    }
+
+    /**
+     * Rebuilds the object type nodes of a single environment. They carry the sort
+     * order and the filter in their context value and description, so re-rendering
+     * them means recreating them: getTreeItem returns the items as they are, and
+     * refreshing an object type node would only reload its children. Refreshing
+     * the environment leaves the other ones untouched.
+     */
+    private refreshTenant(tenant: TenantInfo): void {
+        // Without the displayed item, fall back to a refresh of the whole tree
+        this.onDidChangeTreeDataEmitter.fire(this.tenantItems.get(tenant.id));
     }
 
     /** Current name filter applied to the given object type node, if any */
@@ -91,9 +110,9 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
             return this.toTreeItems(this.tenantService.getChildren(element.folder.id));
         }
         if (element instanceof TenantTreeItem) {
-            // Config file first, then object types in alphabetical order (cf. OBJECT_TYPES)
+            // Log4j2 configuration first, then object types in alphabetical order (cf. OBJECT_TYPES)
             return [
-                new ConfigFileTreeItem(element.tenant),
+                new Log4jConfigTreeItem(element.tenant),
                 ...OBJECT_TYPES.map(definition => {
                     const nodeId = `${element.tenant.id}/${definition.objectType}`;
                     return new ObjectTypeTreeItem(
@@ -121,7 +140,9 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
             if (isFolderTreeNode(node)) {
                 items.push(new FolderTreeItem(node));
             } else if (isTenantInfo(node)) {
-                items.push(new TenantTreeItem(node, node.id === activeTenantId));
+                const item = new TenantTreeItem(node, node.id === activeTenantId);
+                this.tenantItems.set(node.id, item);
+                items.push(item);
             }
         }
         return items;

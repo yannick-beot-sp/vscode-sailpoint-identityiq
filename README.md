@@ -42,16 +42,22 @@ refresh and compare IIQ objects without leaving your editor.
   from the selection; opens a save dialog with cleaned XML.
 - **Copy name** (object leaf context menu): copies the object name to the
   clipboard, one name per line for a multiple selection.
+- **Open in IdentityIQ...** (object leaf context menu): opens the object in
+  the IdentityIQ desktop UI in the system browser, for types that have a
+  direct page (Applications, Roles, Identities, Tasks, Workflows, Workgroups).
 - Exported XML is **cleaned for source control** (configurable): internal ids,
   created/modified timestamps, reference ids, `significantModified`... removed,
   **CDATA preserved**.
 - **Import file(s)...** from the editor, from an environment's context menu
   in the tree view (file picker), or from the file explorer (multi-selection,
   folders imported recursively), with a success/error report.
-- **iiq.properties**: listed under each environment; click to edit it through
-  the same virtual file system as objects (`iiq://…/config/iiq.properties`).
-  **Save** writes the file on the server and reloads it. **Download** /
-  **Upload** commands copy it to or from a local file (upload also reloads).
+- **Log4j2 configuration**: listed under each environment; click to edit it
+  through the same virtual file system as objects
+  (`iiq://…/config/log4j2.properties`). **Save** writes the file on the server
+  and reconfigures logging immediately — unlike **Configure logging...**, the
+  change survives a restart. A configuration Log4j2 rejects is rolled back
+  server-side. **Download** / **Upload** commands copy it to or from a local
+  file (upload also reconfigures).
 - **Refresh file from IdentityIQ...**: re-fetch the object of the current XML file.
 - **Compare with IdentityIQ...**: diff the current XML file with its version
   in an environment.
@@ -137,6 +143,7 @@ and detailed flows.
 ## Documentation
 
 - [Use cases & design reference](docs/use-cases.md)
+- [Identity View webview specification](docs/identity-webview.md)
 - [Companion plugin REST API specification](docs/plugin-api.md)
 - [Testing strategy](docs/testing.md)
 

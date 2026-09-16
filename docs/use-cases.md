@@ -36,7 +36,7 @@ src/
 │   ├── tenantCommands.ts        # add/remove/rename/test/set-active/select environment
 │   ├── folderCommands.ts        # add/rename/remove folder
 │   ├── objectCommands.ts        # open/export/save/delete objects
-│   ├── configCommands.ts        # download/upload/open iiq.properties
+│   ├── configCommands.ts        # open/download/upload the Log4j2 configuration
 │   ├── ruleCommands.ts          # run a rule and display its result
 │   ├── taskCommands.ts          # run a task, poll its status, preview the TaskResult
 │   ├── applicationCommands.ts   # test connection, peek objects (testConnector)
@@ -141,7 +141,7 @@ an environment (open, export, import, refresh, compare).
   `lastModified`); each object type node has "Sort by name" / "Sort by last
   modification date" context menu entries overriding it per node.
 - Clicking an object opens it through the virtual file system.
-- Each environment also has an **iiq.properties** leaf (see UC-35).
+- Each environment also has a **Log4j2 configuration** leaf (see UC-35).
 
 ### UC-11 — Open an object (guided)
 Command `iiq.open-object` (palette or environment context menu):
@@ -165,6 +165,11 @@ Command `iiq.open-object` (palette or environment context menu):
 - `iiq.object.copy-name` (**Copy name**, object context menu): writes the name
   of the selected object to the clipboard, one name per line when several
   objects are selected. No server call.
+- `iiq.object.open-in-ui` (**Open in IdentityIQ...**, object context menu):
+  opens the object in the IdentityIQ desktop UI (`vscode.env.openExternal`).
+  Only types with a stable deep-link are offered (Application, Bundle,
+  Identity, TaskDefinition, Workgroup, Workflow). Forms, Rules, ObjectConfigs
+  and QuickLinks have no id-addressable page.
 
 ### UC-14 — Get any object (generic)
 Command `iiq.get-object` (palette or environment context menu): same flow as
@@ -321,20 +326,25 @@ Command `iiq.application.peek-objects` (application context menu — inline
 3. the `objects` array of the response is opened as a read-only preview JSON
    document (untitled, `showTextDocument(..., { preview: true })`).
 
-### UC-35 — Edit `iiq.properties`
-- Tree: an **iiq.properties** leaf under each environment opens
-  `iiq://<id>/<Env>/config/iiq.properties` through the virtual file system
-  (read-only when the environment is).
-- Reading performs `GET /system/config`; `stat` uses `HEAD /system/config`.
-- **Saving** the virtual document performs `PUT /system/config`: the plugin
-  writes `WEB-INF/classes/iiq.properties` and reloads the keys into the live
-  `Environment`. DataSource and other startup-only settings still need a
-  restart.
-- **Download iiq.properties...** (`iiq.config.download`): save the current
-  server file locally (no reload).
-- **Upload iiq.properties...** (`iiq.config.upload`): pick a local file,
-  `PUT` it, reload on the server. Also available from the explorer on a
-  `iiq.properties` file. Blocked on read-only environments.
+### UC-35 — Edit the Log4j2 configuration
+- Tree: a **Log4j2 configuration** leaf under each environment runs
+  `iiq.log4j.open`, which resolves the real file name with
+  `HEAD /system/log4j` and opens
+  `iiq://<id>/<Env>/config/<file name>` through the virtual file system
+  (read-only when the environment is). The name is resolved rather than
+  assumed because Log4j2 also supports XML, YAML and JSON configurations.
+- Reading performs `GET /system/log4j`; `stat` uses `HEAD /system/log4j`.
+- **Saving** the virtual document performs `PUT /system/log4j`: the plugin
+  writes the file and reconfigures the live logger context, so the new
+  levels apply immediately. A configuration Log4j2 refuses is rolled back
+  server-side and the save fails.
+- **Download the Log4j2 configuration...** (`iiq.log4j.download`): save the
+  current server file locally (changes nothing on the server).
+- **Upload a Log4j2 configuration...** (`iiq.log4j.upload`): pick a local
+  file, `PUT` it, reconfigure on the server. Also available from the
+  explorer on a `log4j*.…` file. Blocked on read-only environments.
+- Unlike **Configure logging...** (UC-33), which changes a level in memory
+  only, edits here are persisted and survive a restart.
 
 ## 7. Configuration summary
 
@@ -367,9 +377,12 @@ Command `iiq.application.peek-objects` (application context menu — inline
 | Run task | `iiq.run-task` | task menu (view), palette |
 | Tail server logs | `iiq.tail-logs` | environment menu, palette |
 | Stop tailing server logs | `iiq.stop-tail-logs` | palette, status bar |
-| Download iiq.properties | `iiq.config.download` | environment menu, config leaf, palette |
-| Upload iiq.properties | `iiq.config.upload` | environment menu (writable), config leaf, explorer, palette |
+| Open the Log4j2 configuration | `iiq.log4j.open` | Log4j2 leaf, environment menu, palette |
+| Download the Log4j2 configuration | `iiq.log4j.download` | environment menu, Log4j2 leaf, palette |
+| Upload a Log4j2 configuration | `iiq.log4j.upload` | environment menu (writable), Log4j2 leaf, explorer, palette |
 | Export object | `iiq.object.save` | object menu |
+| Copy name | `iiq.object.copy-name` | object menu |
+| Open in IdentityIQ | `iiq.object.open-in-ui` | object menu (types with a desktop page) |
 | Delete object | `iiq.object.delete` | object menu |
 | Refresh / Load more / Sort by... | `iiq.refresh`, `iiq.load-more`, `iiq.sort-by-*` | view |
 | Test an application connection | `iiq.application.test-connection` | application menu (view), palette |

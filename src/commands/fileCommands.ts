@@ -87,7 +87,7 @@ export class FileCommands {
             return;
         }
         if (editor.document.uri.scheme === URI_SCHEME) {
-            // Virtual document (object XML or iiq.properties): re-read from the environment
+            // Virtual document (object XML or Log4j2 configuration): re-read from the environment
             await vscode.commands.executeCommand("workbench.action.files.revert");
             return;
         }

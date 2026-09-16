@@ -61,7 +61,8 @@ async function main() {
 	// Webview scripts run in the browser inside webview panels
 	const webviewCtx = await esbuild.context({
 		entryPoints: [
-			'src/webview/workflowPreview/main.ts'
+			'src/webview/workflowPreview/main.ts',
+			'src/webview/identityView/main.ts'
 		],
 		bundle: true,
 		format: 'iife',
@@ -69,7 +70,11 @@ async function main() {
 		sourcemap: !production,
 		sourcesContent: false,
 		platform: 'browser',
-		outfile: 'dist/webview/workflowPreview.js',
+		// One bundle per entry point, named after its folder:
+		// src/webview/<name>/main.ts -> dist/webview/<name>.js
+		entryNames: '[dir]',
+		outbase: 'src/webview',
+		outdir: 'dist/webview',
 		logLevel: 'silent',
 		plugins: [
 			esbuildProblemMatcherPlugin,

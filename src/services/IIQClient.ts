@@ -1,6 +1,18 @@
 import * as https from "https";
 import axios, { AxiosInstance } from "axios";
-import { CONFIGURATION, EXPECTED_API_VERSION, PLUGIN_REST_BASE_PATH } from "../constants";
+import {
+    CONFIGURATION,
+    EXPECTED_API_VERSION,
+    LOG4J_CONFIG_FILE,
+    LOG4J_FILE_NAME_HEADER,
+    PLUGIN_REST_BASE_PATH
+} from "../constants";
+import {
+    DetailObjectType,
+    IdentitySection,
+    IdentityView,
+    ObjectSummaryView
+} from "../identity/identityViewModel";
 import { ObjectListResult, ObjectSummary } from "../models/ObjectTypes";
 import { TenantCredentials, TenantInfo } from "../models/TenantInfo";
 import { wrapSourceCdata } from "../utils/xmlUtils";
@@ -84,6 +96,24 @@ export interface ObjectMetadata {
     modified?: Date;
     /** Entity tag (hash of the XML), usable for change detection */
     etag?: string;
+}
+
+/**
+ * Metadata of the file backing the live Log4j2 configuration. Its name is
+ * not always `log4j2.properties`: Log4j2 also supports XML, YAML and JSON,
+ * and the file may have been relocated.
+ */
+export interface Log4jConfigMetadata extends ObjectMetadata {
+    /** Base name of the file on the server, e.g. "log4j2.properties" */
+    fileName: string;
+}
+
+/** The Log4j2 configuration file of an environment, with its content */
+export interface Log4jConfig {
+    fileName: string;
+    /** Absolute path on the server, for display only */
+    path: string;
+    content: string;
 }
 
 /**
@@ -256,6 +286,34 @@ export class IIQClient {
         }
     }
 
+    /** Loads the read-only Identity View cube, or a single refreshable section. */
+    public async getIdentityView(nameOrId: string, section?: IdentitySection): Promise<IdentityView> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.get<Envelope<IdentityView>>(
+                `/identities/${encodeURIComponent(nameOrId)}/view`,
+                { params: { section } });
+            return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /** Loads the lazy summary shown by an Identity View detail drawer. */
+    public async getObjectSummary(
+        objectType: DetailObjectType,
+        nameOrId: string
+    ): Promise<ObjectSummaryView> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.get<Envelope<ObjectSummaryView>>(
+                `/objects/${objectType}/${encodeURIComponent(nameOrId)}/summary`);
+            return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
     /**
      * Imports an XML document (single object or <sailpoint> bundle).
      * Equivalent to the IdentityIQ "import from file" feature: objects are
@@ -327,28 +385,37 @@ export class IIQClient {
     }
 
     /**
-     * Contents of the environment's `WEB-INF/classes/iiq.properties`.
+     * Contents of the file backing the live Log4j2 configuration, usually
+     * `WEB-INF/classes/log4j2.properties`.
      */
-    public async getIiqProperties(): Promise<string> {
+    public async getLog4jConfig(): Promise<Log4jConfig> {
         const client = await this.getAxios();
         try {
-            const response = await client.get<Envelope<string>>("/system/config");
-            return response.data.result;
+            const response = await client.get<Envelope<string> & { fileName?: string; path?: string }>(
+                "/system/log4j");
+            return {
+                fileName: response.data.fileName ?? LOG4J_CONFIG_FILE,
+                path: response.data.path ?? "",
+                content: response.data.result
+            };
         } catch (error) {
             throw improveError(error, this.tenant);
         }
     }
 
     /**
-     * Metadata of `iiq.properties` (HEAD), used by the virtual file system
-     * for stat without transferring the file.
+     * Metadata of the Log4j2 configuration file (HEAD), used by the virtual
+     * file system for stat without transferring the file, and to resolve
+     * the real file name before opening it.
      */
-    public async getIiqPropertiesMetadata(): Promise<ObjectMetadata | undefined> {
+    public async getLog4jConfigMetadata(): Promise<Log4jConfigMetadata | undefined> {
         const client = await this.getAxios();
         try {
-            const response = await client.head("/system/config");
+            const response = await client.head("/system/log4j");
             const lastModified = response.headers["last-modified"];
+            const fileName = response.headers[LOG4J_FILE_NAME_HEADER];
             return {
+                fileName: fileName ? String(fileName) : LOG4J_CONFIG_FILE,
                 size: parseInt(String(response.headers["content-length"] ?? "0"), 10),
                 modified: lastModified ? new Date(String(lastModified)) : undefined,
                 etag: response.headers["etag"] ? String(response.headers["etag"]) : undefined
@@ -362,17 +429,21 @@ export class IIQClient {
     }
 
     /**
-     * Writes `iiq.properties` on the server and reloads it into the live
-     * IdentityIQ Environment. The content travels in the `content` property
-     * of a JSON body (same constraint as XML import: non-JSON bodies never
-     * reach the plugin resource).
+     * Writes the Log4j2 configuration file on the server and reconfigures
+     * the live logger context from it. The content travels in the `content`
+     * property of a JSON body (same constraint as XML import: non-JSON
+     * bodies never reach the plugin resource).
+     * @returns the name and path of the file written on the server
      */
-    public async putIiqProperties(content: string): Promise<void> {
+    public async putLog4jConfig(content: string): Promise<{ fileName: string; path: string }> {
         const client = await this.getAxios();
         try {
-            await client.put("/system/config", { content }, {
-                headers: { "Content-Type": "application/json" }
-            });
+            const response = await client.put<Envelope<{ fileName?: string; path?: string }>>(
+                "/system/log4j", { content }, { headers: { "Content-Type": "application/json" } });
+            return {
+                fileName: response.data.result?.fileName ?? LOG4J_CONFIG_FILE,
+                path: response.data.result?.path ?? ""
+            };
         } catch (error) {
             throw improveError(error, this.tenant);
         }

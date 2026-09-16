@@ -1,0 +1,679 @@
+/* Identity View webview. Every color comes from a VS Code theme variable so
+   the view follows light/dark/high-contrast themes (see docs/identity-webview.md). */
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--vscode-font-family);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--vscode-editor-foreground);
+    background: var(--vscode-editor-background);
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.muted {
+    opacity: 0.75;
+}
+
+.separator {
+    opacity: 0.5;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header                                                              */
+/* ------------------------------------------------------------------ */
+
+.identity-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 10px 14px 8px;
+    background: var(--vscode-editor-background);
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.title-row h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.secondary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.header-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 2px 14px;
+    margin: 8px 0 0;
+    font-size: 12px;
+}
+
+.header-meta dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.7;
+}
+
+.header-meta dd {
+    margin: 0 0 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tabs                                                                */
+/* ------------------------------------------------------------------ */
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 6px 14px 0;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 3px 3px 0 0;
+    background: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tab-count {
+    display: inline-block;
+    min-width: 1.25em;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+}
+
+.tab:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+.tab[aria-selected="true"] {
+    border-bottom-color: var(--vscode-focusBorder);
+    font-weight: 600;
+}
+
+.tab:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Section panel                                                       */
+/* ------------------------------------------------------------------ */
+
+.section-panel {
+    flex: 1;
+    padding: 10px 14px 18px;
+}
+
+.section-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.section-toolbar h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
+
+.section-toolbar input[type="search"] {
+    min-width: 120px;
+    padding: 3px 6px;
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.section-toolbar input[type="search"]:focus-visible,
+.section-toolbar select:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+.group-by-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.group-by-label select {
+    padding: 3px 6px;
+    border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border, transparent));
+    border-radius: 2px;
+    background: var(--vscode-dropdown-background, var(--vscode-input-background));
+    color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.group-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 14px 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.paged-section > .group-heading:first-child {
+    margin-top: 0;
+}
+
+.group-count {
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+.pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+.entitlement-name-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.checkbox-label input {
+    margin: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Attributes grid                                                     */
+/* ------------------------------------------------------------------ */
+
+.attribute-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px 14px;
+}
+
+.attribute {
+    min-width: 0;
+}
+
+/* Long values (email, DN...) get more room, and fold to one column
+   naturally on a narrow panel without any media query. */
+.attribute-wide {
+    grid-column: span 3;
+}
+
+.attribute-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.attribute-value {
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tables & lists                                                      */
+/* ------------------------------------------------------------------ */
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 4px 8px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+}
+
+th {
+    position: relative;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.75;
+}
+
+/* Columns the user resized. Only a fixed layout honours a width narrower
+   than the content: the automatic one grows every column to fit its
+   longest value, so the content has to be clipped to its cell instead. */
+.table-fixed {
+    table-layout: fixed;
+}
+
+.table-fixed th,
+.table-fixed td {
+    overflow: hidden;
+}
+
+.table-fixed th {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* A column may be dragged narrower than its content — a DN never fits a
+   readable width anyway. Truncate with an ellipsis rather than clipping
+   mid-character; the full value stays available in the cell's tooltip, in
+   the drawer, and on copy. Badge lists keep wrapping instead. */
+.table-fixed td .link-btn,
+.table-fixed td > span:not(.status-list) {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    vertical-align: top;
+}
+
+/* Grab zone inside the header — a resized header clips what overflows it,
+   so a handle straddling the border would lose half its target — with a
+   line under the pointer so the target is visible before the drag starts. */
+.col-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+}
+
+.col-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2px;
+    height: 100%;
+}
+
+.col-resizer:hover::after,
+.col-resizer:active::after {
+    background: var(--vscode-focusBorder);
+}
+
+tbody tr:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.card-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.role-tree-children {
+    margin-left: 14px;
+    padding-left: 10px;
+    border-left: 1px solid var(--vscode-tree-indentGuidesStroke,
+        var(--vscode-panel-border, rgba(128, 128, 128, 0.35)));
+}
+
+.list-row {
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+}
+
+.list-row:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.list-main {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.status-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.row-secondary {
+    margin-top: 2px;
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+.clamp {
+    display: block;
+    max-width: 70ch;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ */
+/* Badges — Negative must read in 200 ms                               */
+/* ------------------------------------------------------------------ */
+
+.badge {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 8px;
+    border: 1px solid currentColor;
+    font-size: 11px;
+    line-height: 16px;
+    white-space: nowrap;
+}
+
+.badge-success {
+    color: var(--vscode-charts-green);
+}
+
+.badge-info {
+    color: var(--vscode-charts-blue);
+}
+
+.badge-warning {
+    color: var(--vscode-editorWarning-foreground, var(--vscode-charts-yellow));
+}
+
+.badge-neutral {
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.9;
+}
+
+.badge-classification {
+    color: var(--vscode-charts-purple, var(--vscode-charts-blue));
+}
+
+/* ------------------------------------------------------------------ */
+/* Buttons                                                             */
+/* ------------------------------------------------------------------ */
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.copy-value {
+    max-width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: inherit;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.copy-value:hover {
+    text-decoration: underline dotted;
+}
+
+.link-btn {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--vscode-textLink-foreground);
+    font-size: inherit;
+    text-align: left;
+}
+
+.link-btn:hover {
+    color: var(--vscode-textLink-activeForeground);
+    text-decoration: underline;
+}
+
+.primary-btn,
+.secondary-btn,
+.refresh-btn {
+    padding: 3px 10px;
+    border: none;
+    border-radius: 2px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.primary-btn {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.primary-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.secondary-btn,
+.refresh-btn {
+    background: var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.2));
+    color: var(--vscode-button-secondaryForeground, inherit);
+}
+
+.secondary-btn:hover,
+.refresh-btn:hover {
+    background: var(--vscode-button-secondaryHoverBackground, rgba(128, 128, 128, 0.3));
+}
+
+button:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------------ */
+/* States                                                              */
+/* ------------------------------------------------------------------ */
+
+.state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 4px;
+    opacity: 0.85;
+}
+
+.error-state {
+    flex-direction: column;
+    align-items: flex-start;
+    color: var(--vscode-editorError-foreground);
+    opacity: 1;
+}
+
+.error-state p {
+    margin: 0;
+}
+
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--vscode-descriptionForeground);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation: none;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Detail drawer (right-hand panel, not a centered modal)              */
+/* ------------------------------------------------------------------ */
+
+.drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.drawer {
+    display: flex;
+    flex-direction: column;
+    width: min(380px, 85vw);
+    height: 100%;
+    overflow-y: auto;
+    padding: 10px 14px 18px;
+    background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+    border-left: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.drawer-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.drawer-heading {
+    flex: 1;
+    min-width: 0;
+}
+
+.drawer-header h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.drawer-last-refresh {
+    margin-top: 2px;
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.drawer-heading .status-list {
+    margin-top: 6px;
+}
+
+.drawer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.drawer-subtitle {
+    margin: 14px 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
+
+/* Account attributes: one per line, and never truncated — a DN or a
+   multi-valued group list is exactly what the drawer is opened for. */
+.drawer .attribute-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.drawer .attribute-wide {
+    grid-column: auto;
+}
+
+.drawer .attribute-value {
+    white-space: normal;
+    overflow: visible;
+    word-break: break-word;
+}
+
+.detail-list {
+    margin: 0;
+}
+
+.detail-list dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.7;
+}
+
+.detail-list dd {
+    margin: 0 0 8px;
+    word-break: break-word;
+}

@@ -22,8 +22,8 @@ import { parseIiqUri, parseResourceUri } from "../utils/UriUtils";
  * the environment; saving imports it back, providing transparent live edit
  * of IdentityIQ objects.
  *
- * The environment configuration file is `iiq://<tenantId>/<tenant name>/config/iiq.properties`.
- * Saving writes `WEB-INF/classes/iiq.properties` on the server and reloads it.
+ * The Log4j2 configuration file is `iiq://<tenantId>/<tenant name>/config/<file name>`.
+ * Saving writes it on the server and reconfigures the live logger context.
  */
 export class IIQResourceProvider implements FileSystemProvider {
 
@@ -70,7 +70,7 @@ export class IIQResourceProvider implements FileSystemProvider {
         const parsed = parseIiqUri(uri);
         const text = Buffer.from(content).toString("utf8");
         if (parsed.kind === "config") {
-            await client.putIiqProperties(text);
+            await client.putLog4jConfig(text);
         } else {
             const result = await client.importXml(text);
             if (result.errors && result.errors.length > 0) {
@@ -84,7 +84,7 @@ export class IIQResourceProvider implements FileSystemProvider {
         this.ensureWritable(uri);
         const parsed = parseIiqUri(uri);
         if (parsed.kind === "config") {
-            throw vscode.FileSystemError.NoPermissions("The IdentityIQ configuration file cannot be deleted.");
+            throw vscode.FileSystemError.NoPermissions("The Log4j2 configuration file cannot be deleted.");
         }
         const client = this.getClient(uri);
         await client.deleteObject(parsed.objectType, parsed.objectId);
@@ -113,7 +113,7 @@ export class IIQResourceProvider implements FileSystemProvider {
         const parsed = parseIiqUri(uri);
         const client = this.getClient(uri);
         if (parsed.kind === "config") {
-            return await client.getIiqProperties();
+            return (await client.getLog4jConfig()).content;
         }
         const data = await client.getObjectIfExists(parsed.objectType, parsed.objectId);
         if (data === undefined) {
@@ -126,7 +126,7 @@ export class IIQResourceProvider implements FileSystemProvider {
         const parsed = parseIiqUri(uri);
         const client = this.getClient(uri);
         if (parsed.kind === "config") {
-            return await client.getIiqPropertiesMetadata();
+            return await client.getLog4jConfigMetadata();
         }
         return await client.getObjectMetadata(parsed.objectType, parsed.objectId);
     }

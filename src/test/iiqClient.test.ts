@@ -423,34 +423,47 @@ suite("IIQClient & virtual FS Test Suite (mock plugin)", () => {
         assert.strictEqual(server.getLoggerLevel("org.hibernate.SQL"), undefined);
     });
 
-    test("UC-35: GET/PUT /system/config reads and writes iiq.properties with reload", async () => {
-        const original = await client.getIiqProperties();
-        assert.ok(original.includes("dataSource.maxWaitTime"));
+    test("UC-35: GET/PUT /system/log4j reads and writes the Log4j2 configuration", async () => {
+        const original = await client.getLog4jConfig();
+        assert.strictEqual(original.fileName, "log4j2.properties");
+        assert.ok(original.content.includes("rootLogger.level"));
 
-        const updated = original + "\n# edited from test\n";
-        const before = server.iiqPropertiesReloads;
-        await client.putIiqProperties(updated);
-        assert.strictEqual(server.iiqPropertiesReloads, before + 1);
-        assert.strictEqual(await client.getIiqProperties(), updated);
+        const updated = original.content + "logger.iiq.name = sailpoint\nlogger.iiq.level = debug\n";
+        const before = server.log4jReconfigurations;
+        const written = await client.putLog4jConfig(updated);
+        assert.strictEqual(written.fileName, "log4j2.properties");
+        assert.strictEqual(server.log4jReconfigurations, before + 1);
+        assert.strictEqual((await client.getLog4jConfig()).content, updated);
 
-        const metadata = await client.getIiqPropertiesMetadata();
+        const metadata = await client.getLog4jConfigMetadata();
         assert.ok(metadata);
+        assert.strictEqual(metadata!.fileName, "log4j2.properties");
         assert.strictEqual(metadata!.size, Buffer.byteLength(updated, "utf8"));
     });
 
-    test("UC-35: the iiq:// virtual FS reads and writes iiq.properties", async () => {
+    test("UC-35: the metadata carries the real file name of an XML configuration", async () => {
+        server.log4jConfigFileName = "log4j2.xml";
+        try {
+            const metadata = await client.getLog4jConfigMetadata();
+            assert.strictEqual(metadata?.fileName, "log4j2.xml");
+        } finally {
+            server.log4jConfigFileName = "log4j2.properties";
+        }
+    });
+
+    test("UC-35: the iiq:// virtual FS reads and writes the Log4j2 configuration", async () => {
         const uri = buildConfigUri(tenant.id, tenant.name);
         const content = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8");
-        assert.ok(content.includes("IdentityIQ configuration") || content.includes("dataSource") || content.length > 0);
+        assert.ok(content.includes("rootLogger.level"));
 
-        const next = content + "\ncustom.debug=true\n";
+        const next = content + "logger.custom.level = trace\n";
         await vscode.workspace.fs.writeFile(uri, Buffer.from(next, "utf8"));
-        assert.ok(server.iiqProperties.includes("custom.debug=true"));
-        assert.ok(server.iiqPropertiesReloads >= 1);
+        assert.ok(server.log4jConfig!.includes("logger.custom.level = trace"));
+        assert.ok(server.log4jReconfigurations >= 1);
 
         const stat = await vscode.workspace.fs.stat(uri);
         assert.strictEqual(stat.type, vscode.FileType.File);
-        assert.strictEqual(stat.size, Buffer.byteLength(server.iiqProperties, "utf8"));
+        assert.strictEqual(stat.size, Buffer.byteLength(server.log4jConfig!, "utf8"));
     });
 
     test("UC-11: opening a virtual document in the editor works end-to-end", async () => {

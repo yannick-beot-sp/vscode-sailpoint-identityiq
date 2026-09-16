@@ -70,9 +70,9 @@ Every endpoint is protected with `@RequiredRight("iiqDevToolsAccess")`:
 - To grant access to non-administrators, import an SPRight named
   `iiqDevToolsAccess` and assign it through a capability.
 
-Rule executions, task launches and `iiq.properties` updates are also written
-to the audit log (actions `iiq-devtools:runRule` / `iiq-devtools:runTask` /
-`iiq-devtools:updateIiqProperties`).
+Rule executions, task launches and Log4j2 configuration updates are also
+written to the audit log (actions `iiq-devtools:runRule` /
+`iiq-devtools:runTask` / `iiq-devtools:updateLog4jConfig`).
 
 ## Logging
 
@@ -88,4 +88,5 @@ logger.vscodeplugin.level = debug
 
 [test.http](test.http) exercises every endpoint (httpyac / VS Code REST
 Client): ping, list, get/HEAD, import, update, run rule, launch task, poll
-its status and fetch the final TaskResult.
+its status and fetch the final TaskResult, tail the logs, and load the
+Identity View cube and its drawer summaries.

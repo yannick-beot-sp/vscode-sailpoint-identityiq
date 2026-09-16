@@ -6,6 +6,7 @@ import { TenantService } from "../services/TenantService";
 import { getXmlCleaningOptions } from "../utils/configurationUtils";
 import { extractObjectReferences, ObjectReference, referenceKey } from "../utils/dependencyUtils";
 import { isEmpty, normalizeAsFilename } from "../utils/stringUtils";
+import { buildObjectUiUrl } from "../utils/iiqUiUrls";
 import { buildResourceUri } from "../utils/UriUtils";
 import { confirm, chooseTenant, withProgress } from "../utils/vsCodeHelpers";
 import { buildSailpointBundle, cleanXml, renameXmlObject } from "../utils/xmlUtils";
@@ -367,6 +368,23 @@ export class ObjectCommands {
         vscode.window.setStatusBarMessage(names.length === 1
             ? `Copied "${names[0]}" to the clipboard.`
             : `Copied ${names.length} names to the clipboard.`, 3000);
+    }
+
+    /**
+     * Opens the selected object in the IdentityIQ desktop UI (system browser).
+     * Types without a deep-linkable page are rejected with a warning.
+     */
+    public async openObjectInUi(node: ObjectTreeItem): Promise<void> {
+        if (!(node instanceof ObjectTreeItem)) {
+            return;
+        }
+        const url = buildObjectUiUrl(node.tenant.url, node.definition.objectType, node.object.id);
+        if (!url) {
+            vscode.window.showWarningMessage(
+                `IdentityIQ has no direct page for ${node.definition.objectType} objects.`);
+            return;
+        }
+        await vscode.env.openExternal(vscode.Uri.parse(url));
     }
 
     /** Deletes an object from the tree view, after confirmation */

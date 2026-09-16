@@ -43,6 +43,13 @@ suite("UriUtils Test Suite", () => {
         });
     });
 
+    test("ancestor folders of an object URI are not parsed as objects", () => {
+        const uri = buildResourceUri(baseParts);
+        const idFolder = uri.with({ path: uri.path.replace(/\/[^/]+$/, "") });
+        assert.throws(() => parseResourceUri(idFolder));
+        assert.throws(() => parseIiqUri(idFolder));
+    });
+
     test("diff URIs use the read-only scheme", () => {
         const uri = buildDiffResourceUri({
             tenantId: "abc",
@@ -62,12 +69,23 @@ suite("UriUtils Test Suite", () => {
     test("config URI round-trip", () => {
         const uri = buildConfigUri("6f2b8f74-0000-0000-0000-000000000000", "Development");
         assert.strictEqual(uri.scheme, URI_SCHEME);
-        assert.ok(uri.path.endsWith("/config/iiq.properties"));
+        assert.ok(uri.path.endsWith("/config/log4j2.properties"));
         assert.deepStrictEqual(parseIiqUri(uri), {
             kind: "config",
             tenantId: "6f2b8f74-0000-0000-0000-000000000000",
             tenantName: "Development",
-            fileName: "iiq.properties"
+            fileName: "log4j2.properties"
+        });
+    });
+
+    test("config URI keeps the file name reported by the server", () => {
+        const uri = buildConfigUri("6f2b8f74-0000-0000-0000-000000000000", "Development", "log4j2.xml");
+        assert.ok(uri.path.endsWith("/config/log4j2.xml"));
+        assert.deepStrictEqual(parseIiqUri(uri), {
+            kind: "config",
+            tenantId: "6f2b8f74-0000-0000-0000-000000000000",
+            tenantName: "Development",
+            fileName: "log4j2.xml"
         });
     });
 });

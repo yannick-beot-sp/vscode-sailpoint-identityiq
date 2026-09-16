@@ -18,6 +18,19 @@ export const PLUGIN_REST_BASE_PATH = "/plugin/rest/iiq-devtools";
  */
 export const EXPECTED_API_VERSION = 1;
 
+/**
+ * Default name of the Log4j2 configuration file of an environment. The
+ * plugin reports the name of the file actually backing the live
+ * configuration, which Log4j2 also allows to be XML, YAML or JSON.
+ */
+export const LOG4J_CONFIG_FILE = "log4j2.properties";
+
+/**
+ * Header of the `HEAD /system/log4j` response carrying that real file
+ * name (lowercase: axios normalizes response header names).
+ */
+export const LOG4J_FILE_NAME_HEADER = "x-iiq-file-name";
+
 /** View id of the environment tree view */
 export const VIEW_ID = "iiq.view.environments";
 
@@ -30,8 +43,8 @@ export const CONTEXT_VALUES = {
     objectType: "iiqObjectType",
     object: "iiqObject",
     loadMore: "iiqLoadMore",
-    configFile: "iiqConfigFile",
-    configFileReadOnly: "iiqConfigFileReadOnly"
+    log4jConfig: "iiqLog4jConfig",
+    log4jConfigReadOnly: "iiqLog4jConfigReadOnly"
 } as const;
 
 /** Commands ids. Must match the `contributes.commands` section of package.json */
@@ -60,17 +73,22 @@ export const COMMANDS = {
     testApplicationConnection: "iiq.application.test-connection",
     peekApplicationObjects: "iiq.application.peek-objects",
     previewWorkflow: "iiq.preview-workflow",
+    viewIdentity: "iiq.identity.view",
+    viewIdentityXml: "iiq.identity.view-xml",
+    refreshIdentity: "iiq.identity.refresh",
     tailLogs: "iiq.tail-logs",
     stopTailLogs: "iiq.stop-tail-logs",
     configureLogging: "iiq.configure-logging",
-    downloadConfig: "iiq.config.download",
-    uploadConfig: "iiq.config.upload",
+    openLog4jConfig: "iiq.log4j.open",
+    downloadLog4jConfig: "iiq.log4j.download",
+    uploadLog4jConfig: "iiq.log4j.upload",
     saveObject: "iiq.object.save",
     saveObjectWithDependencies: "iiq.object.save-with-dependencies",
     cloneObject: "iiq.object.clone",
     copyObjectToTenant: "iiq.object.copy-to-tenant",
     copyObjectToTenantView: "iiq.object.copy-to-tenant-view",
     copyObjectName: "iiq.object.copy-name",
+    openObjectInUi: "iiq.object.open-in-ui",
     deleteObject: "iiq.object.delete",
     refresh: "iiq.refresh",
     refreshNode: "iiq.refresh-node",

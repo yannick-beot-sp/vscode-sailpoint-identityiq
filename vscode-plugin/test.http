@@ -19,6 +19,27 @@ GET {{url}}/system/ping
 GET {{url}}/system/classes
 ...defaultHeaders
 
+### Log4j2 configuration file: content, real file name and path
+# @name log4jConfig
+
+GET {{url}}/system/log4j
+...defaultHeaders
+
+### Metadata only: Content-Length / Last-Modified / ETag / X-IIQ-File-Name headers
+
+HEAD {{url}}/system/log4j
+...defaultHeaders
+
+### Write it back and reconfigure logging (an invalid configuration is rolled back)
+
+PUT {{url}}/system/log4j
+...defaultHeaders
+Content-Type: application/json
+
+{
+  "content": "{{log4jConfig.result}}"
+}
+
 ### List rules (paginated, sorted)
 
 GET {{url}}/objects/Rule?start=0&limit=5&sortBy=name&sortDir=asc
@@ -119,4 +140,30 @@ GET {{url}}/logs/{{logFiles.result.0.key}}/tail
 ### Incremental tail (an offset larger than the file answers rotated: true)
 
 GET {{url}}/logs/{{logFiles.result.0.key}}/tail?offset={{tailLog.result.nextOffset}}
+...defaultHeaders
+
+### Identity View cube: header + the seven sections, never the Identity XML
+# @name identityView
+
+GET {{url}}/identities/spadmin/view
+...defaultHeaders
+
+### One section only, as a tab refresh does
+
+GET {{url}}/identities/spadmin/view?section=quicklinks
+...defaultHeaders
+
+### Detail drawer of a role
+
+GET {{url}}/objects/Bundle/{{identityView.result.roles.0.name}}/summary
+...defaultHeaders
+
+### Detail drawer of an entitlement
+
+GET {{url}}/objects/ManagedAttribute/{{identityView.result.entitlements.0.managedAttributeId}}/summary
+...defaultHeaders
+
+### Detail drawer of an account: the Link and its aggregated attributes
+
+GET {{url}}/objects/Link/{{identityView.result.accounts.0.id}}/summary
 ...defaultHeaders

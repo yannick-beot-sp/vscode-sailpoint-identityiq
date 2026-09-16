@@ -12,6 +12,7 @@ import { TaskCommands } from "./commands/taskCommands";
 import { TenantCommands } from "./commands/tenantCommands";
 import { COMMANDS, DIFF_SCHEME, URI_SCHEME, VIEW_ID } from "./constants";
 import { IIQRemoteContentProvider, IIQResourceProvider } from "./files/IIQResourceProvider";
+import { IdentityViewProvider } from "./identity/IdentityViewProvider";
 import { registerIdentityIqMcp } from "./mcp/register";
 import { EnvironmentStatusBar } from "./services/EnvironmentStatusBar";
 import { TenantService } from "./services/TenantService";
@@ -51,6 +52,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
     // Virtual file system (live edit of IdentityIQ objects) and diff content
     const resourceProvider = new IIQResourceProvider(tenantService);
     const remoteContentProvider = new IIQRemoteContentProvider(tenantService);
+    const identityViewProvider = new IdentityViewProvider(context.extensionUri, tenantService);
+    identityViewProvider.register(context);
 
     // Commands
     const tenantCommands = new TenantCommands(tenantService, tenant => {
@@ -109,6 +112,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         vscode.commands.registerCommand(COMMANDS.copyObjectToTenantView,
             objectCommands.copyObjectToTenantFromView, objectCommands),
         vscode.commands.registerCommand(COMMANDS.copyObjectName, objectCommands.copyObjectName, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.openObjectInUi, objectCommands.openObjectInUi, objectCommands),
         vscode.commands.registerCommand(COMMANDS.deleteObject, objectCommands.deleteObject, objectCommands),
 
         // Files
@@ -135,10 +139,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         vscode.commands.registerCommand(COMMANDS.configureLogging,
             loggingCommands.configureLoggerLevel, loggingCommands),
 
-        vscode.commands.registerCommand(COMMANDS.downloadConfig,
-            configCommands.downloadConfig, configCommands),
-        vscode.commands.registerCommand(COMMANDS.uploadConfig,
-            configCommands.uploadConfig, configCommands),
+        vscode.commands.registerCommand(COMMANDS.openLog4jConfig,
+            configCommands.openLog4jConfig, configCommands),
+        vscode.commands.registerCommand(COMMANDS.downloadLog4jConfig,
+            configCommands.downloadLog4jConfig, configCommands),
+        vscode.commands.registerCommand(COMMANDS.uploadLog4jConfig,
+            configCommands.uploadLog4jConfig, configCommands),
 
         // Tree view helpers
         vscode.commands.registerCommand(COMMANDS.refresh, () => treeDataProvider.refresh()),
