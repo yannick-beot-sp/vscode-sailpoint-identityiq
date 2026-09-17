@@ -13,32 +13,87 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    env:
+      IIQ_VERSION: '8.5'
     steps:
     - name: Checkout
       uses: actions/checkout@v6
+
+    # Fingerprints ignore package / POM project versions so a release bump
+    # does not bust npm or Maven caches. Only real dependency (and plugin)
+    # changes should invalidate them.
+    - name: Build dependency fingerprints
+      shell: bash
+      run: |
+        mkdir -p .github/cache-keys
+        node <<'EOF'
+        const fs = require('fs');
+
+        const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+        delete lock.name;
+        delete lock.version;
+        if (lock.packages && lock.packages['']) {
+          delete lock.packages[''].name;
+          delete lock.packages[''].version;
+        }
+        fs.writeFileSync('.github/cache-keys/npm-lock.json', JSON.stringify(lock));
+
+        let pom = fs.readFileSync('vscode-plugin/pom.xml', 'utf8');
+        pom = pom.replace(
+          /(<modelVersion>4\.0\.0<\/modelVersion>\s*<artifactId>vscode-plugin<\/artifactId>\s*<groupId>vscode-plugin<\/groupId>\s*)<version>[^<]+<\/version>/,
+          '$1<version>PINNED</version>'
+        );
+        fs.writeFileSync('.github/cache-keys/pom.xml', pom);
+        EOF
+
     - name: Install Node.js
       uses: actions/setup-node@v6
       with:
         node-version: 24.x
+        cache: npm
+        cache-dependency-path: .github/cache-keys/npm-lock.json
+
     - name: Set up Java
       uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 24
         cache: maven
-        cache-dependency-path: vscode-plugin/pom.xml
+        cache-dependency-path: .github/cache-keys/pom.xml
+
+    - name: Cache node_modules
+      id: node-modules-cache
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node24-modules-${{ hashFiles('.github/cache-keys/npm-lock.json') }}
+
+    - name: Check IdentityIQ artifacts in Maven cache
+      id: iiq-m2
+      shell: bash
+      run: |
+        JAR="$HOME/.m2/repository/sailpoint/identityiq/${IIQ_VERSION}/identityiq-${IIQ_VERSION}.jar"
+        BUNDLE="$HOME/.m2/repository/sailpoint/connector-bundle-identityiq/${IIQ_VERSION}/connector-bundle-identityiq-${IIQ_VERSION}.jar"
+        if [[ -f "$JAR" && -f "$BUNDLE" ]]; then
+          echo "hit=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "hit=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Checkout IdentityIQ Maven dependencies
+      if: steps.iiq-m2.outputs.hit != 'true'
       uses: actions/checkout@v6
       with:
         repository: yannick-beot-sp/mvn-dependencies
         token: ${{ secrets.MVN_DEPENDENCIES_TOKEN }}
         path: mvn-dependencies
         persist-credentials: false
+
     - name: Install IdentityIQ libraries
+      if: steps.iiq-m2.outputs.hit != 'true'
       shell: bash
       env:
         IIQ_DEPS: ${{ github.workspace }}/mvn-dependencies
-        IIQ_VERSION: 8.5
       run: |
         mvn -B install:install-file \
           -Dfile="$IIQ_DEPS/sailpoint/identityiq/$IIQ_VERSION/identityiq.jar" \
@@ -52,7 +107,9 @@ jobs:
           -DartifactId=connector-bundle-identityiq \
           -Dversion=$IIQ_VERSION \
           -Dpackaging=jar
+
     - name: Install the dependencies
+      if: steps.node-modules-cache.outputs.cache-hit != 'true'
       run: npm ci
 
     - name: Install vsce
