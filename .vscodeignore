@@ -17,3 +17,8 @@ vscode-plugin/**
 docs/**
 TODO.md
 RELEASE.md
+# Marketplace icon, must stay in the vsix
+!resources/icon.png
+.github/**
+.claude/**
+.cursor/**
