@@ -2,10 +2,11 @@ import * as vscode from "vscode";
 import { getAllObjectTypeDefinitions, ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { IIQClient } from "../services/IIQClient";
+import { PathProposer, pathToUri } from "../services/PathProposer";
 import { TenantService } from "../services/TenantService";
 import { getXmlCleaningOptions } from "../utils/configurationUtils";
 import { extractObjectReferences, ObjectReference, referenceKey } from "../utils/dependencyUtils";
-import { isEmpty, normalizeAsFilename } from "../utils/stringUtils";
+import { isEmpty } from "../utils/stringUtils";
 import { buildObjectUiUrl } from "../utils/iiqUiUrls";
 import { buildResourceUri } from "../utils/UriUtils";
 import { confirm, chooseTenant, withProgress } from "../utils/vsCodeHelpers";
@@ -184,10 +185,10 @@ export class ObjectCommands {
      * The destination file is chosen before any export request is sent.
      */
     public async saveObjectWithDependencies(node: ObjectTreeItem): Promise<void> {
-        const defaultName = `${normalizeAsFilename(node.object.name)}-with-deps.xml`;
         const target = await vscode.window.showSaveDialog({
             title: "Save object with dependencies",
-            defaultUri: this.getDefaultUri(defaultName),
+            defaultUri: pathToUri(PathProposer.getWithDependenciesFilename(
+                node.tenant.name, node.definition.objectType, node.object.name)),
             filters: { "XML files": ["xml"] }
         });
         if (!target) {
@@ -406,12 +407,13 @@ export class ObjectCommands {
     }
 
     private async exportToSingleFile(tenant: TenantInfo, selection: ExportedObject[]): Promise<void> {
-        const defaultName = selection.length === 1
-            ? `${normalizeAsFilename(selection[0].object.name)}.xml`
-            : "export.xml";
+        const proposed = selection.length === 1
+            ? PathProposer.getSingleResourceFilename(
+                tenant.name, selection[0].definition.objectType, selection[0].object.name)
+            : PathProposer.getSingleFileFilename(tenant.name);
         const target = await vscode.window.showSaveDialog({
             title: "Export IdentityIQ objects",
-            defaultUri: this.getDefaultUri(defaultName),
+            defaultUri: pathToUri(proposed),
             filters: { "XML files": ["xml"] }
         });
         if (!target) {
@@ -437,7 +439,7 @@ export class ObjectCommands {
             canSelectFolders: true,
             canSelectMany: false,
             openLabel: "Export here",
-            defaultUri: this.getDefaultUri()
+            defaultUri: pathToUri(PathProposer.getMultipleFilesFolder(tenant.name))
         });
         if (!folders || folders.length === 0) {
             return;
@@ -448,10 +450,10 @@ export class ObjectCommands {
                 const xmls = await this.fetchCleanedXmls(tenant, selection);
                 for (let i = 0; i < selection.length; i++) {
                     const { definition, object } = selection[i];
-                    // One sub-folder per object type
-                    const fileUri = vscode.Uri.joinPath(folder,
-                        definition.objectType,
-                        `${normalizeAsFilename(object.name)}.xml`);
+                    const relative = PathProposer.getMultipleFilesFilename(
+                        tenant.name, definition.objectType, object.name);
+                    const segments = relative.split(/[/\\]+/).filter(part => part.length > 0);
+                    const fileUri = vscode.Uri.joinPath(folder, ...segments);
                     await vscode.workspace.fs.writeFile(fileUri, Buffer.from(xmls[i], "utf8"));
                 }
             });
@@ -557,13 +559,5 @@ export class ObjectCommands {
         } catch (error) {
             vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
         }
-    }
-
-    private getDefaultUri(fileName?: string): vscode.Uri | undefined {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            return undefined;
-        }
-        return fileName ? vscode.Uri.joinPath(workspaceFolder.uri, fileName) : workspaceFolder.uri;
     }
 }

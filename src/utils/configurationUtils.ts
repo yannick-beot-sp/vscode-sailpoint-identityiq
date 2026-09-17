@@ -4,6 +4,11 @@ import { XmlCleaningOptions } from "./xmlUtils";
 
 export type SortField = "name" | "lastModified";
 
+/** First workspace folder path, or undefined when no folder is open */
+export function getWorkspaceFolder(): string | undefined {
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
 export function getPageSize(): number {
     return vscode.workspace.getConfiguration().get<number>(CONFIGURATION.pageSize, 200);
 }

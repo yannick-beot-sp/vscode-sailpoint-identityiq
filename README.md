@@ -141,6 +141,11 @@ refresh and compare IIQ objects without leaving your editor.
 | `iiq.pagination.pageSize` | `200` | Number of objects per page in lists |
 | `iiq.objectList.sort` | `name` | Default sort order (`name` or `lastModified`) |
 | `iiq.connection.rejectUnauthorized` | `true` | Verify SSL certificates |
+| `iiq.export.singleResource.filename` | `%x/%S.xml` | Save-dialog path when exporting a single object |
+| `iiq.export.singleFile.filename` | `%x/export.xml` | Save-dialog path when exporting several objects to one file |
+| `iiq.export.multipleFiles.folder` | `%x` | Folder proposed when exporting one file per object |
+| `iiq.export.multipleFiles.filename` | `%o/%S.xml` | Relative path of each file under the chosen folder |
+| `iiq.export.withDependencies.filename` | `%x/%S-with-deps.xml` | Save-dialog path when exporting an object with its dependencies |
 | `iiq.export.removeIds` | `true` | Remove internal ids on export |
 | `iiq.export.removeCreatedTimestamp` | `true` | Remove `created` timestamps on export |
 | `iiq.export.removeModifiedTimestamp` | `true` | Remove `modified` timestamps on export |
@@ -150,6 +155,19 @@ refresh and compare IIQ objects without leaving your editor.
 | `iiq.beanshell.enabled` | `true` | BeanShell completion/hover/signature help in `<Source>` sections |
 | `iiq.beanshell.classpath` | `[]` | Jars or folders (typically `WEB-INF/lib`) providing Java metadata |
 | `iiq.beanshell.maxCompletionItems` | `500` | Cap on class-name completion items |
+
+Export path patterns use the following tokens:
+
+| Token | Meaning |
+|---|---|
+| `%u` | User home directory |
+| `%w` | Workspace folder |
+| `%x` | Workspace folder if defined, otherwise home directory |
+| `%d` / `%M` / `%y` | Day, month, year (UTC) |
+| `%h` / `%m` / `%s` | Hour, minute, second (UTC) |
+| `%t` / `%T` | Environment display name |
+| `%o` | Object type (e.g. `Rule`, `Application`) |
+| `%S` | Object name |
 
 ## Commands
 

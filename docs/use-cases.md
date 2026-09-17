@@ -192,9 +192,12 @@ type node's context menu in the tree view):
    preselects that single type),
 3. for each selected type, an object picker (**multi-select**),
 4. if several objects are selected: choice between **one file per object**
-   (then folder picker; files are written to `<folder>/<ObjectType>/<name>.xml`)
-   and **a single file** (then save dialog; objects are wrapped in one
-   `<sailpoint>` document),
+   (then folder picker, default `iiq.export.multipleFiles.folder`; files are
+   written under that folder using `iiq.export.multipleFiles.filename`,
+   default `<ObjectType>/<name>.xml`) and **a single file** (then save dialog
+   using `iiq.export.singleFile.filename`; objects are wrapped in one
+   `<sailpoint>` document). A single selected object skips this choice and
+   uses `iiq.export.singleResource.filename`.
 5. a single-file export is opened in the editor afterwards.
 
 ### UC-21 — XML cleaning on export
@@ -354,6 +357,11 @@ Command `iiq.application.peek-objects` (application context menu — inline
 | `iiq.objectList.sort` | `name` | Default sort (`name` / `lastModified`) |
 | `iiq.connection.rejectUnauthorized` | `true` | SSL certificate verification |
 | `iiq.logs.pollIntervalMs` | `2000` | Poll interval while tailing server logs |
+| `iiq.export.singleResource.filename` | `%x/%S.xml` | Proposed path for a single-object export |
+| `iiq.export.singleFile.filename` | `%x/export.xml` | Proposed path for a multi-object single file |
+| `iiq.export.multipleFiles.folder` | `%x` | Proposed folder for one-file-per-object export |
+| `iiq.export.multipleFiles.filename` | `%o/%S.xml` | Relative filename under the chosen folder |
+| `iiq.export.withDependencies.filename` | `%x/%S-with-deps.xml` | Proposed path for export with dependencies |
 | `iiq.export.*` | `true` | XML cleaning rules (see UC-21) |
 
 ## 8. Command summary

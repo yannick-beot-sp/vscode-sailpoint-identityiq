@@ -824,6 +824,31 @@
           "maximum": 60000,
           "description": "Interval in milliseconds between two polls while tailing server logs."
         },
+        "iiq.export.singleResource.filename": {
+          "type": "string",
+          "default": "%x/%S.xml",
+          "markdownDescription": "Pattern proposed in the save dialog when exporting a **single object**. Tokens: `%u` home dir, `%w` workspace folder, `%x` workspace or home, `%d` day, `%M` month, `%y` year, `%h` hour, `%m` minute, `%s` second (UTC), `%t` / `%T` environment name, `%o` object type, `%S` object name."
+        },
+        "iiq.export.singleFile.filename": {
+          "type": "string",
+          "default": "%x/export.xml",
+          "markdownDescription": "Pattern proposed in the save dialog when exporting **several objects into one** `<sailpoint>` file. Same tokens as `iiq.export.singleResource.filename` (`%o` and `%S` are empty in this case)."
+        },
+        "iiq.export.multipleFiles.folder": {
+          "type": "string",
+          "default": "%x",
+          "markdownDescription": "Folder proposed in the folder picker when exporting **one file per object**. Same tokens as `iiq.export.singleResource.filename` (`%o` and `%S` are empty here)."
+        },
+        "iiq.export.multipleFiles.filename": {
+          "type": "string",
+          "default": "%o/%S.xml",
+          "markdownDescription": "Relative path concatenated to the chosen export folder for each object when exporting **one file per object**. These filenames are not confirmed. Same tokens as `iiq.export.singleResource.filename`."
+        },
+        "iiq.export.withDependencies.filename": {
+          "type": "string",
+          "default": "%x/%S-with-deps.xml",
+          "markdownDescription": "Pattern proposed in the save dialog when exporting an object **with its dependencies**. Same tokens as `iiq.export.singleResource.filename`."
+        },
         "iiq.export.removeIds": {
           "type": "boolean",
           "default": true,
