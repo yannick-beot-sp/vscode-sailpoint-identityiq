@@ -217,6 +217,7 @@ Query parameters:
 | `sortDir` | `asc` | `asc` or `desc` |
 | `query` | — | Optional case-insensitive filter on the name (`Filter.ignoreCase(Filter.like("name", query))`) |
 | `excludeTypes` | — | Optional CSV of `type` values to exclude, e.g. `Report,LiveReport` to keep reports out of a `TaskDefinition` list. `400` when the class has no `type` property or a value does not match its enum |
+| `includeTemplates` | `false` | Include TaskDefinition templates; used by bulk export |
 
 Implementation note: use a projection search
 (`context.search(clazz, queryOptions, Arrays.asList("id", "name", "created", "modified"))`)
@@ -225,10 +226,9 @@ with the same filters as the search. `excludeTypes` values are converted to the
 enum of the `type` property when there is one (`TaskDefinition`, `Rule`...), and
 objects with a **null** type are kept (a bare `NOT (type IN ...)` would drop them).
 
-For `TaskDefinition`, an unconditional `template = false` filter is always
-applied (not exposed as a query parameter): templates (`template="true"` in the
-XML) are blueprints used to create tasks, not runnable tasks themselves, so
-they are never returned by this endpoint.
+For `TaskDefinition`, `template = false` is applied unless
+`includeTemplates=true`. Interactive task lists keep templates hidden; bulk
+export requests them so its result matches Object Exporter.
 
 `Workgroup` is a **virtual type alias** for `Identity`: it resolves to the
 `Identity` class, and listing applies an unconditional `workgroup = true`
@@ -262,6 +262,22 @@ Response `200`:
 ```
 
 Response `404`: unknown object.
+
+#### `POST /objects/{ObjectType}/{nameOrId}/merge-xml`
+
+Builds the additive SSB XML used by bulk export. The request body is
+`{ "baselineXml": "..." }`; the live IIQ object is compared to that baseline.
+Supported classes are `Configuration`, `UIConfig`, `ObjectConfig`,
+`AuditConfig`, and `Dictionary`. The response `result` is a `<sailpoint>`
+document containing `<ImportAction name="merge">` and only added or changed
+values. This endpoint does not mutate IIQ.
+
+#### `GET /system/object-name/{id}`
+
+Resolves a 32-character internal id across `ClassLists.MajorClasses`. Response
+`200` is `{ "result": "Object name" }`; response `404` means the id is unknown.
+Bulk export uses this only when `iiq.export.bulkExport.resolveIdsToNames` is
+enabled.
 
 #### `HEAD /objects/{ObjectType}/{nameOrId}`
 

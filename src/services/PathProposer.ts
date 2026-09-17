@@ -36,6 +36,8 @@ export interface PathContext {
     o?: string;
     /** Object name */
     S?: string;
+    /** Object subtype, from its type attribute */
+    k?: string;
 }
 
 const DEFAULT_PATTERNS: Record<string, string> = {
@@ -43,9 +45,11 @@ const DEFAULT_PATTERNS: Record<string, string> = {
     [CONFIGURATION.exportSingleFileFilename]: "%x/export.xml",
     [CONFIGURATION.exportMultipleFilesFolder]: "%x",
     [CONFIGURATION.exportMultipleFilesFilename]: "%o/%S.xml",
-    [CONFIGURATION.exportWithDependenciesFilename]: "%x/%S-with-deps.xml"
+    [CONFIGURATION.exportWithDependenciesFilename]: "%x/%S-with-deps.xml",
+    [CONFIGURATION.bulkExportFilename]: "%x/%o/%S.xml"
 };
 
+export class PathProposer {
     public static replaceVariables(pathPattern: string, context: PathContext = {}, now = new Date()): string {
         const workspace = getWorkspaceFolder();
         const defaults: PathContext = {
@@ -88,6 +92,16 @@ const DEFAULT_PATTERNS: Record<string, string> = {
     public static getWithDependenciesFilename(
         tenantName: string, objectType: string, objectName: string): string {
         return this.resolveObjectBased(CONFIGURATION.exportWithDependenciesFilename, tenantName, objectType, objectName);
+    }
+
+    public static getBulkExportFilename(
+        tenantName: string, objectType: string, objectName: string, objectSubtype?: string): string {
+        return this.replaceVariables(this.readPattern(CONFIGURATION.bulkExportFilename), {
+            ...this.tenantContext(tenantName),
+            o: normalizeAsFilename(objectType),
+            S: normalizeAsFilename(objectName),
+            k: normalizeAsFilename(objectSubtype ?? "")
+        });
     }
 
     private static resolveTenantBased(key: string, tenantName: string): string {

@@ -412,9 +412,11 @@ public class VSCodePluginResource extends BasePluginResource {
                                     @QueryParam("sortBy") @DefaultValue("name") String sortBy,
                                     @QueryParam("sortDir") @DefaultValue("asc") String sortDir,
                                     @QueryParam("query") String query,
-                                    @QueryParam("excludeTypes") String excludeTypes) throws GeneralException {
-        LOG.debug("list(type={}, start={}, limit={}, sortBy={}, sortDir={}, query={}, excludeTypes={})",
-                type, start, limit, sortBy, sortDir, query, excludeTypes);
+                                    @QueryParam("excludeTypes") String excludeTypes,
+                                    @QueryParam("includeTemplates") @DefaultValue("false") boolean includeTemplates)
+            throws GeneralException {
+        LOG.debug("list(type={}, start={}, limit={}, sortBy={}, sortDir={}, query={}, excludeTypes={}, includeTemplates={})",
+                type, start, limit, sortBy, sortDir, query, excludeTypes, includeTemplates);
         Class<? extends SailPointObject> clazz = resolveClass(type);
         if (!"name".equals(sortBy) && !"modified".equals(sortBy)) {
             throw error(Response.Status.BAD_REQUEST, "sortBy must be \"name\" or \"modified\"");
@@ -432,7 +434,7 @@ public class VSCodePluginResource extends BasePluginResource {
             countOptions.addFilter(filter);
             queryOptions.addFilter(filter);
         }
-        if (TaskDefinition.class.equals(clazz)) {
+        if (TaskDefinition.class.equals(clazz) && !includeTemplates) {
             // Templates are blueprints used to create tasks, not runnable
             // tasks themselves: never show them in the Tasks list.
             Filter filter = Filter.eq("template", false);
@@ -491,6 +493,47 @@ public class VSCodePluginResource extends BasePluginResource {
             throw error(Response.Status.NOT_FOUND, type + " \"" + nameOrId + "\" not found");
         }
         return ok(toXml(object));
+    }
+
+    /**
+     * Builds an additive SSB merge document by comparing the live object with
+     * a baseline XML document. Supported types match V2Plugin Object Exporter.
+     */
+    @POST
+    @Path("objects/{type}/{nameOrId}/merge-xml")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @RequiredRight(ACCESS_RIGHT)
+    public Map<String, Object> mergeXml(@PathParam("type") String type,
+                                        @PathParam("nameOrId") String nameOrId,
+                                        Map<String, Object> body) throws GeneralException {
+        Object baselineValue = body == null ? null : body.get("baselineXml");
+        if (!(baselineValue instanceof String) || Util.isNullOrEmpty((String) baselineValue)) {
+            throw error(Response.Status.BAD_REQUEST, "Missing or empty baselineXml");
+        }
+        Class<? extends SailPointObject> clazz = resolveClass(type);
+        SailPointObject current = find(clazz, nameOrId);
+        if (current == null) {
+            throw error(Response.Status.NOT_FOUND, type + " \"" + nameOrId + "\" not found");
+        }
+        SailPointObject baseline = parse(clazz, (String) baselineValue);
+        LOG.debug("mergeXml(type={}, nameOrId={}, baselineBytes={})",
+                type, nameOrId, ((String) baselineValue).length());
+        return ok(BulkExportMerge.merge(current, baseline));
+    }
+
+    /** Resolves an internal id across the supported major classes. */
+    @GET
+    @Path("system/object-name/{id}")
+    @RequiredRight(ACCESS_RIGHT)
+    public Map<String, Object> resolveObjectName(@PathParam("id") String id) throws GeneralException {
+        LOG.debug("resolveObjectName(id={})", id);
+        for (Class<? extends SailPointObject> clazz : MAJOR_CLASSES.values()) {
+            SailPointObject object = getContext().getObjectById(clazz, id);
+            if (object != null) {
+                return ok(object.getName());
+            }
+        }
+        throw error(Response.Status.NOT_FOUND, "Object id \"" + id + "\" not found");
     }
 
     /**

@@ -2,7 +2,7 @@
   "name": "vscode-sailpoint-identityiq",
   "displayName": "SailPoint IdentityIQ",
   "description": "Manage SailPoint IdentityIQ objects (Rules, Workflows, Tasks, Applications...) directly from VS Code",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "yannick-beot-sp",
   "engines": {
     "vscode": "^1.125.0"
@@ -152,6 +152,11 @@
       {
         "command": "iiq.export-objects",
         "title": "Export objects...",
+        "category": "IIQ"
+      },
+      {
+        "command": "iiq.export-objects-bulk",
+        "title": "Export objects in bulk",
         "category": "IIQ"
       },
       {
@@ -543,6 +548,11 @@
           "group": "2_actions@3"
         },
         {
+          "command": "iiq.export-objects-bulk",
+          "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
+          "group": "2_actions@4"
+        },
+        {
           "command": "iiq.import-file-view",
           "when": "view == iiq.view.environments && viewItem =~ /^iiqTenant(ReadOnly|Writable)$/",
           "group": "2_actions@5"
@@ -793,6 +803,13 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "iiq.import-file",
+        "key": "ctrl+alt+s",
+        "when": "editorTextFocus && editorLangId == xml && resourceScheme == file"
+      }
+    ],
     "configuration": {
       "title": "SailPoint IdentityIQ",
       "properties": {
@@ -848,6 +865,101 @@
           "type": "string",
           "default": "%x/%S-with-deps.xml",
           "markdownDescription": "Pattern proposed in the save dialog when exporting an object **with its dependencies**. Same tokens as `iiq.export.singleResource.filename`."
+        },
+        "iiq.export.bulkExport.filename": {
+          "type": "string",
+          "default": "%x/%o/%S.xml",
+          "markdownDescription": "Output filename pattern used by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk). Supports `%u`, `%w`, `%x`, `%d`, `%M`, `%y`, `%h`, `%m`, `%s`, `%t` / `%T`, `%o` (object class), `%S` (object name), and `%k` (object `type`)."
+        },
+        "iiq.export.bulkExport.classNames": {
+          "type": "string",
+          "default": "default",
+          "markdownDescription": "Comma-separated object classes used by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk). Use `default` for the source-control set, leave empty for all supported non-runtime classes, or use filters such as `Rule:type:BeforeProvisioning`."
+        },
+        "iiq.export.bulkExport.regexFilter": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Regular expression matched against the complete object name by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk). Empty matches every name."
+        },
+        "iiq.export.bulkExport.fromDate": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional ISO-8601 date. [IIQ: Export objects in bulk](command:iiq.export-objects-bulk) includes objects created or modified on or after this date."
+        },
+        "iiq.export.bulkExport.bundleFilter": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional parent Bundle name used by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk); only that role and roles inheriting it are included."
+        },
+        "iiq.export.bulkExport.bundleTypeFilter": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional Bundle type used by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk), for example `it` or `business`."
+        },
+        "iiq.export.bulkExport.addCData": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Add CDATA around eligible source sections during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.stripMetadata": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Strip environment-specific task and application metadata during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.stripTDEmailMetadata": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Strip `taskCompletionEmail*` TaskDefinition arguments during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.stripProfiles": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Strip Bundle profiles during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.stripRoleMetadata": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Strip Bundle role index and scorecard metadata during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.customIgnore": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Comma-separated attribute keys removed from Application, TaskDefinition, and TaskSchedule objects by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.sortObjectConfigIdentity": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Sort repeatable sections of ObjectConfig `Identity` during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.targetPropsFile": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Workspace-relative or absolute XPath reverse-tokenization properties file used by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.simplePropsFile": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Workspace-relative or absolute simple reverse-tokenization properties file used by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.mergeCompareDirPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Baseline XML directory used for SSB merge exports by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.ignoreDirPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Directory of XML objects skipped by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.modelDirPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Directory whose XML paths and filenames are mirrored by [IIQ: Export objects in bulk](command:iiq.export-objects-bulk)."
+        },
+        "iiq.export.bulkExport.resolveIdsToNames": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Resolve remaining 32-character internal IDs to object names during [IIQ: Export objects in bulk](command:iiq.export-objects-bulk). This can issue many requests."
         },
         "iiq.export.removeIds": {
           "type": "boolean",

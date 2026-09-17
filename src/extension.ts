@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { registerBeanshellLanguageSupport } from "./beanshell";
 import { ApplicationCommands } from "./commands/applicationCommands";
+import { BulkExportCommands } from "./commands/bulkExportCommands";
 import { ConfigCommands } from "./commands/configCommands";
 import { FileCommands } from "./commands/fileCommands";
 import { FolderCommands } from "./commands/folderCommands";
@@ -65,6 +66,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
     const ruleCommands = new RuleCommands(tenantService);
     const taskCommands = new TaskCommands(tenantService);
     const applicationCommands = new ApplicationCommands(tenantService);
+    const bulkExportCommands = new BulkExportCommands(tenantService);
     const logCommands = new LogCommands(tenantService);
     const loggingCommands = new LoggingCommands(tenantService);
     const configCommands = new ConfigCommands(tenantService, uri => resourceProvider.triggerModified(uri));
@@ -104,6 +106,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         // Objects
         vscode.commands.registerCommand(COMMANDS.openObject, objectCommands.openObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.exportObjects, objectCommands.exportObjects, objectCommands),
+        vscode.commands.registerCommand(COMMANDS.exportObjectsBulk,
+            bulkExportCommands.exportObjects, bulkExportCommands),
         vscode.commands.registerCommand(COMMANDS.saveObject, objectCommands.saveObject, objectCommands),
         vscode.commands.registerCommand(COMMANDS.saveObjectWithDependencies,
             objectCommands.saveObjectWithDependencies, objectCommands),

@@ -141,6 +141,8 @@ export interface ListObjectsOptions {
     query?: string;
     /** Values of the `type` attribute to exclude (e.g. Report, LiveReport) */
     excludeTypes?: string[];
+    /** Include TaskDefinition templates (bulk export only) */
+    includeTemplates?: boolean;
 }
 
 export interface TenantCredentialsProvider {
@@ -223,7 +225,8 @@ export class IIQClient {
                     sortBy: options.sortBy === "lastModified" ? "modified" : "name",
                     sortDir: options.sortBy === "lastModified" ? "desc" : "asc",
                     query: options.query,
-                    excludeTypes: options.excludeTypes?.length ? options.excludeTypes.join(",") : undefined
+                    excludeTypes: options.excludeTypes?.length ? options.excludeTypes.join(",") : undefined,
+                    includeTemplates: options.includeTemplates || undefined
                 }
             });
             return { count: response.data.count, objects: response.data.result };
@@ -237,13 +240,42 @@ export class IIQClient {
      * The plugin cannot return raw XML: the XML travels as a string in the
      * `result` field of the JSON envelope (serialized with toXml() server-side).
      */
-    public async getObject(objectType: string, nameOrId: string): Promise<string> {
+    public async getObject(objectType: string, nameOrId: string, addCData = true): Promise<string> {
         const client = await this.getAxios();
         try {
             const response = await client.get<Envelope<string>>(
                 `/objects/${encodeURIComponent(objectType)}/${encodeURIComponent(nameOrId)}`);
-            return wrapSourceCdata(response.data.result);
+            return addCData ? wrapSourceCdata(response.data.result) : response.data.result;
         } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /** Builds an SSB ImportAction merge document against a baseline object. */
+    public async mergeObjectXml(objectType: string, nameOrId: string, baselineXml: string): Promise<string> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.post<Envelope<string>>(
+                `/objects/${encodeURIComponent(objectType)}/${encodeURIComponent(nameOrId)}/merge-xml`,
+                { baselineXml },
+                { headers: { "Content-Type": "application/json" } });
+            return response.data.result;
+        } catch (error) {
+            throw improveError(error, this.tenant);
+        }
+    }
+
+    /** Resolves an internal IdentityIQ id to its object name, when known. */
+    public async resolveObjectName(id: string): Promise<string | undefined> {
+        const client = await this.getAxios();
+        try {
+            const response = await client.get<Envelope<string>>(
+                `/system/object-name/${encodeURIComponent(id)}`);
+            return response.data.result;
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                return undefined;
+            }
             throw improveError(error, this.tenant);
         }
     }

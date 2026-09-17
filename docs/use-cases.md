@@ -220,8 +220,8 @@ to guarantee formatting and CDATA stability.
 
 ### UC-22 — Import files
 Three commands share the same import pipeline (`POST /import`):
-- `iiq.import-file` — active editor (editor context menu / palette); uses the
-  active environment or shows an environment picker.
+- `iiq.import-file` — active editor (editor context menu / palette /
+  **Ctrl+Alt+S**); always shows an environment picker.
 - `iiq.import-file-explorer` — **file explorer** (single file, multi-selection
   of files and/or **folders — imported recursively**, XML files only); shows
   an environment picker.
@@ -245,6 +245,38 @@ Command `iiq.compare-file` (editor context menu):
 - the object type/name are parsed from the XML,
 - a **diff view** opens: remote version (read-only, via the
   `iiq-remote://` content provider) on the left, local file on the right.
+
+### UC-25 — Export objects in bulk
+Command `iiq.export-objects-bulk` (**IIQ: Export objects in bulk**, palette or
+environment context menu) exports matching objects without an object picker.
+The operation is cancellable, writes one local XML file per object, and reports
+counts by class.
+
+All command-specific settings use the `iiq.export.bulkExport.*` prefix:
+
+| Setting | Effect |
+|---|---|
+| `filename` | Full output pattern; default `%x/%o/%S.xml`; also supports `%k` for the object `type` |
+| `classNames` | CSV of classes; `default`, blank for non-runtime major classes, or `Class:property:value` |
+| `regexFilter` | Full regular-expression match on object names |
+| `fromDate` | Include objects created or modified on/after an ISO-8601 date |
+| `bundleFilter`, `bundleTypeFilter` | Restrict Bundles by parent role and type |
+| `addCData` | Wrap eligible source sections in CDATA |
+| `stripMetadata`, `stripTDEmailMetadata` | Remove environment/task email metadata |
+| `stripProfiles`, `stripRoleMetadata` | Remove Bundle profiles/index/scorecard data |
+| `customIgnore` | CSV of Application/TaskDefinition/TaskSchedule entry keys to remove |
+| `sortObjectConfigIdentity` | Sort `ObjectAttribute` elements in ObjectConfig Identity |
+| `targetPropsFile`, `simplePropsFile` | XPath and literal reverse-tokenization property files |
+| `mergeCompareDirPath` | Baseline directory for Configuration/UIConfig/ObjectConfig/AuditConfig/Dictionary SSB merges |
+| `ignoreDirPath` | Directory containing objects to skip |
+| `modelDirPath` | Directory whose object paths and filenames are mirrored; enables `pull` |
+| `resolveIdsToNames` | Resolve remaining 32-character IIQ ids through the companion plugin |
+
+Paths may be absolute or workspace-relative. Bulk exports also apply the common
+UC-21 settings (`iiq.export.removeIds`, timestamps, reference ids and source
+control cleanup). The Object Exporter `$Class$`, `$Name$`, and `$type$` concepts
+map to `%o`, `%S`, and `%k`; `$Default$`/IIQDA camel-case naming is deliberately
+not used.
 
 ## 5. Rule & task execution
 
@@ -378,7 +410,8 @@ Command `iiq.application.peek-objects` (application context menu — inline
 | Open object | `iiq.open-object` | palette, environment menu |
 | Get object (any type) | `iiq.get-object` | palette, environment menu |
 | Export objects | `iiq.export-objects` | palette, environment menu, object type menu (view) |
-| Import file(s) | `iiq.import-file` / `iiq.import-file-explorer` / `iiq.import-file-view` | palette, editor menu, explorer menu, environment menu (view) |
+| Export objects in bulk | `iiq.export-objects-bulk` | palette, environment menu |
+| Import file(s) | `iiq.import-file` / `iiq.import-file-explorer` / `iiq.import-file-view` | palette, editor menu, **Ctrl+Alt+S**, explorer menu, environment menu (view) |
 | Refresh file from IIQ | `iiq.refresh-file` | editor menu, palette |
 | Compare with IIQ | `iiq.compare-file` | editor menu, palette |
 | Run rule | `iiq.run-rule` | rule menu (view), editor menu, palette |

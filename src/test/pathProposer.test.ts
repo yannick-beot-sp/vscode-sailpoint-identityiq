@@ -50,6 +50,16 @@ suite("PathProposer Test Suite", () => {
         assert.ok(result.endsWith("A_B.xml"), result);
     });
 
+    test("bulk pattern supports the object subtype token", () => {
+        const result = PathProposer.replaceVariables("%x/%o/%k/%S.xml", {
+            x: "/workspace",
+            o: "Rule",
+            k: "BeforeProvisioning",
+            S: "Prepare Plan"
+        }, now);
+        assert.strictEqual(result, "/workspace/Rule/BeforeProvisioning/Prepare Plan.xml");
+    });
+
     test("pathToUri normalizes the resolved path", () => {
         const uri = pathToUri("/tmp/export.xml");
         assert.strictEqual(uri.scheme, "file");
