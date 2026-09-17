@@ -113,15 +113,15 @@
       },
       {
         "command": "iiq.tenant.set-readonly",
-        "title": "Set environment read-only",
+        "title": "Writable",
         "category": "IIQ",
-        "icon": "$(lock)"
+        "icon": "$(unlock)"
       },
       {
         "command": "iiq.tenant.set-writable",
-        "title": "Set environment writable",
+        "title": "Read-only",
         "category": "IIQ",
-        "icon": "$(unlock)"
+        "icon": "$(lock)"
       },
       {
         "command": "iiq.select-environment",
@@ -887,7 +887,13 @@
           "description": "Path to a custom sailpoint.dtd file used for XML completion, overriding the bundled DTD (e.g. for a different IdentityIQ version or a plugin-extended schema). Leave empty to use the bundled DTD."
         }
       }
-    }
+    },
+    "snippets": [
+      {
+        "language": "xml",
+        "path": "./snippets/rules.json"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

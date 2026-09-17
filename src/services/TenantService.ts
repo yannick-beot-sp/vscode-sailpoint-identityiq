@@ -70,6 +70,11 @@ export class TenantService {
 
     /** Adds a node at the root or under the given folder */
     public async add(item: TreeItemNode, parentFolderId?: string): Promise<void> {
+        // New environments are read-only by default, including callers that
+        // do not go through the interactive add-environment wizard.
+        if (isTenantInfo(item) && item.readOnly === undefined) {
+            item = { ...item, readOnly: true };
+        }
         const roots = this.getRoots();
         if (parentFolderId) {
             const folder = findFirst(roots, i => isFolderTreeNode(i) && i.id === parentFolderId) as FolderTreeNode | undefined;

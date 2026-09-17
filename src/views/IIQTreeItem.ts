@@ -36,7 +36,7 @@ export class TenantTreeItem extends BaseTreeItem {
         this.tooltip = `${tenant.name}\n${tenant.url}`
             + (isActive ? "\nActive environment" : "")
             + (tenant.readOnly ? "\nRead-only" : "");
-        this.iconPath = new vscode.ThemeIcon(tenant.readOnly ? "lock" : "server-environment",
+        this.iconPath = new vscode.ThemeIcon("server-environment",
             isActive ? new vscode.ThemeColor("charts.green") : undefined);
     }
 }

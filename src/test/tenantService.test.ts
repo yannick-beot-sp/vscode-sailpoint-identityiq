@@ -1,7 +1,9 @@
 import * as assert from "assert";
 import * as crypto from "crypto";
+import { TenantCommands } from "../commands/tenantCommands";
 import { FolderTreeNode } from "../models/TreeNode";
 import { TenantService } from "../services/TenantService";
+import { TenantTreeItem } from "../views/IIQTreeItem";
 import { getExtensionApi, makeTenant } from "./testHelpers";
 
 /**
@@ -39,6 +41,26 @@ suite("TenantService Test Suite", () => {
             "name lookup must be case-insensitive");
         const credentials = await tenantService.getCredentials(tenant.id);
         assert.deepStrictEqual(credentials, { username: "spadmin", password: "admin" });
+    });
+
+    test("new environments default to read-only and can be toggled", async () => {
+        const { readOnly: _readOnly, ...tenantWithoutFlag } =
+            makeTenant("http://localhost:8080/identityiq", "Read-only default");
+        createdIds.push(tenantWithoutFlag.id);
+        await tenantService.add(tenantWithoutFlag);
+
+        let tenant = tenantService.getTenant(tenantWithoutFlag.id)!;
+        assert.strictEqual(tenant.readOnly, true);
+
+        let changes = 0;
+        const commands = new TenantCommands(tenantService, () => changes++);
+        await commands.setWritable(new TenantTreeItem(tenant, false));
+        tenant = tenantService.getTenant(tenant.id)!;
+        assert.strictEqual(tenant.readOnly, false);
+
+        await commands.setReadOnly(new TenantTreeItem(tenant, false));
+        assert.strictEqual(tenantService.getTenant(tenant.id)?.readOnly, true);
+        assert.strictEqual(changes, 2);
     });
 
     test("UC-03: rename keeps id and credentials", async () => {
