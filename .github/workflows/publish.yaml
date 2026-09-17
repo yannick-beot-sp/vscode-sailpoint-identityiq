@@ -36,18 +36,19 @@ jobs:
       shell: bash
       env:
         IIQ_DEPS: ${{ github.workspace }}/mvn-dependencies
+        IIQ_VERSION: 8.5
       run: |
         mvn -B install:install-file \
-          -Dfile="$IIQ_DEPS/sailpoint/identityiq/8.5/identityiq.jar" \
+          -Dfile="$IIQ_DEPS/sailpoint/identityiq/$IIQ_VERSION/identityiq.jar" \
           -DgroupId=sailpoint \
           -DartifactId=identityiq \
-          -Dversion=8.5 \
+          -Dversion=$IIQ_VERSION \
           -Dpackaging=jar
         mvn -B install:install-file \
-          -Dfile="$IIQ_DEPS/sailpoint/connector-bundle-identityiq/8.5/connector-bundle-identityiq.jar" \
+          -Dfile="$IIQ_DEPS/sailpoint/connector-bundle-identityiq/$IIQ_VERSION/connector-bundle-identityiq.jar" \
           -DgroupId=sailpoint \
           -DartifactId=connector-bundle-identityiq \
-          -Dversion=8.5 \
+          -Dversion=$IIQ_VERSION \
           -Dpackaging=jar
     - name: Install the dependencies
       run: npm ci
