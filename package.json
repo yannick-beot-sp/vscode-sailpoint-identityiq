@@ -4,6 +4,7 @@
   "description": "Manage SailPoint IdentityIQ objects (Rules, Workflows, Tasks, Applications...) directly from VS Code",
   "version": "1.3.0",
   "publisher": "yannick-beot-sp",
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.125.0"
   },
@@ -1046,6 +1047,7 @@
     "lint": "eslint src",
     "test": "vscode-test",
     "generate-jdk-index": "java scripts/GenerateJdkIndex.java > resources/jdk-core-index.json",
+    "generate-icon": "node scripts/generate-icon.js",
     "build-test-fixtures": "cd src/test/fixtures && rm -rf classes && mkdir classes && javac -g --release 11 -d classes java-src/com/example/fixture/*.java && jar cf fixture.jar -C classes . && rm -rf classes"
   },
   "dependencies": {

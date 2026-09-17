@@ -25,6 +25,30 @@ jobs:
         java-version: 24
         cache: maven
         cache-dependency-path: vscode-plugin/pom.xml
+    - name: Checkout IdentityIQ Maven dependencies
+      uses: actions/checkout@v6
+      with:
+        repository: yannick-beot-sp/mvn-dependencies
+        token: ${{ secrets.MVN_DEPENDENCIES_TOKEN }}
+        path: mvn-dependencies
+        persist-credentials: false
+    - name: Install IdentityIQ libraries
+      shell: bash
+      env:
+        IIQ_DEPS: ${{ github.workspace }}/mvn-dependencies
+      run: |
+        mvn -B install:install-file \
+          -Dfile="$IIQ_DEPS/sailpoint/identityiq/8.5/identityiq.jar" \
+          -DgroupId=sailpoint \
+          -DartifactId=identityiq \
+          -Dversion=8.5 \
+          -Dpackaging=jar
+        mvn -B install:install-file \
+          -Dfile="$IIQ_DEPS/sailpoint/connector-bundle-identityiq/8.5/connector-bundle-identityiq.jar" \
+          -DgroupId=sailpoint \
+          -DartifactId=connector-bundle-identityiq \
+          -Dversion=8.5 \
+          -Dpackaging=jar
     - name: Install the dependencies
       run: npm ci
 
