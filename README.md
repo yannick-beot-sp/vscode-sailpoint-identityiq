@@ -25,7 +25,7 @@ refresh and compare IIQ objects without leaving your editor.
 
 - Visual Studio Code `>= 1.125`.
 - The **iiq-devtools companion plugin** installed in your IdentityIQ instance 
-  (see [plugin](https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq//releases/latest/download/vscode-plugin-1.3.0-bin.zip)).
+  (see [vscode-plugin-*-bin.zip](https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/releases/latest/)).
 - An IIQ account allowed to use the plugin endpoints.
 
 ## Getting started
