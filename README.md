@@ -2,12 +2,12 @@
 [![Latest Releases][release-shield]][release-url]
 [![Contributor Shield][contributor-shield]][contributors-url]
 
-[issues-shield]:https://img.shields.io/github/issues/sailpoint-oss/colab-vscode-sailpoint-identityiq?label=Issues
-[issues-url]:https://github.com/sailpoint-oss/colab-vscode-sailpoint-identityiq/issues
-[release-shield]: https://img.shields.io/github/v/release/sailpoint-oss/colab-vscode-sailpoint-identityiq?label=Current%20Release
-[release-url]:https://github.com/sailpoint-oss/colab-vscode-sailpoint-identityiq/releases
-[contributor-shield]:https://img.shields.io/github/contributors/sailpoint-oss/colab-vscode-sailpoint-identityiq?label=Contributors
-[contributors-url]:https://github.com/sailpoint-oss/colab-vscode-sailpoint-identityiq/graphs/contributors
+[issues-shield]:https://img.shields.io/github/issues/yannick-beot-sp/vscode-sailpoint-identityiq?label=Issues
+[issues-url]:https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/issues
+[release-shield]: https://img.shields.io/github/v/release/yannick-beot-sp/vscode-sailpoint-identityiq?label=Current%20Release
+[release-url]:https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/releases
+[contributor-shield]:https://img.shields.io/github/contributors/yannick-beot-sp/vscode-sailpoint-identityiq?label=Contributors
+[contributors-url]:https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/graphs/contributors
 
 
 # SailPoint IdentityIQ for Visual Studio Code
