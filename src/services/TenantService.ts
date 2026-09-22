@@ -64,6 +64,32 @@ export class TenantService {
         return (folder?.children ?? []).filter(Boolean).sort(compareByName);
     }
 
+    /** Id of the folder holding the given node, or undefined when it sits at the root */
+    public getParentFolderId(id: string): string | undefined {
+        const findParent = (folder: FolderTreeNode): string | undefined => {
+            for (const child of folder.children ?? []) {
+                if (!child) {
+                    continue;
+                }
+                if (child.id === id) {
+                    return folder.id;
+                }
+                const found = isFolderTreeNode(child) ? findParent(child) : undefined;
+                if (found) {
+                    return found;
+                }
+            }
+            return undefined;
+        };
+        for (const root of this.getRoots()) {
+            const found = isFolderTreeNode(root) ? findParent(root) : undefined;
+            if (found) {
+                return found;
+            }
+        }
+        return undefined;
+    }
+
     ///////////////////
     // Tree mutation //
     ///////////////////
@@ -115,20 +141,23 @@ export class TenantService {
             return;
         }
         const roots = this.getRoots();
-        const node = removeById(roots, id);
+        const node = findFirst(roots, i => i.id === id);
         if (!node) {
             return;
         }
-        // Prevent moving a folder into one of its own descendants
+        // Moving a folder into itself or into one of its own descendants would
+        // detach it from the tree: leave it where it is
         if (isFolderTreeNode(node) && targetFolderId
             && findFirst([node], i => i.id === targetFolderId)) {
-            roots.push(node);
-            await this.saveRoots(roots);
             return;
         }
         const target = targetFolderId
             ? findFirst(roots, i => isFolderTreeNode(i) && i.id === targetFolderId) as FolderTreeNode | undefined
             : undefined;
+        if (targetFolderId && !target) {
+            return;
+        }
+        removeById(roots, id);
         if (target) {
             target.children = [...(target.children ?? []), node];
         } else {

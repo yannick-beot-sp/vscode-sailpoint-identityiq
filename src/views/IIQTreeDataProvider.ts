@@ -218,8 +218,9 @@ export class IIQTreeDragAndDropController implements vscode.TreeDragAndDropContr
                     objectId: item.object.id,
                     objectName: item.object.name
                 })))));
-            return;
         }
+        // A mixed selection carries both payloads: the environments and folders must
+        // still be movable even when an object happens to be selected as well
         const ids = source
             .filter(item => item instanceof FolderTreeItem || item instanceof TenantTreeItem)
             .map(item => item.id!);
@@ -230,10 +231,24 @@ export class IIQTreeDragAndDropController implements vscode.TreeDragAndDropContr
     }
 
     async handleDrop(target: BaseTreeItem | undefined, dataTransfer: vscode.DataTransfer): Promise<void> {
+        const nodeTransfer = dataTransfer.get(IIQTreeDragAndDropController.MIME_TYPE);
         const objectTransfer = dataTransfer.get(IIQTreeDragAndDropController.OBJECT_MIME_TYPE);
+
+        if (nodeTransfer) {
+            const ids = JSON.parse(await nodeTransfer.asString()) as string[];
+            const targetFolderId = this.resolveTargetFolderId(target);
+            for (const id of ids) {
+                await this.tenantService.move(id, targetFolderId);
+            }
+        }
+
         if (objectTransfer) {
-            if (!(target instanceof TenantTreeItem)) {
-                vscode.window.showWarningMessage("Drop an object onto an environment to copy it.");
+            const targetTenant = getTenantOf(target);
+            if (!targetTenant) {
+                // Nothing was moved either: the drop had no meaning at all
+                if (!nodeTransfer) {
+                    vscode.window.showWarningMessage("Drop an object onto an environment to copy it.");
+                }
                 return;
             }
             const payloads = JSON.parse(await objectTransfer.asString()) as Array<{
@@ -242,7 +257,12 @@ export class IIQTreeDragAndDropController implements vscode.TreeDragAndDropContr
                 objectId: string;
                 objectName: string;
             }>;
+            const targetItem = new TenantTreeItem(targetTenant, false);
             for (const payload of payloads) {
+                // Dropping an object back into its own environment is a no-op
+                if (payload.tenantId === targetTenant.id) {
+                    continue;
+                }
                 const sourceTenant = this.tenantService.getTenants().find(t => t.id === payload.tenantId);
                 if (!sourceTenant) {
                     continue;
@@ -253,20 +273,35 @@ export class IIQTreeDragAndDropController implements vscode.TreeDragAndDropContr
                 }
                 const object: ObjectSummary = { id: payload.objectId, name: payload.objectName };
                 const sourceItem = new ObjectTreeItem(sourceTenant, definition, object);
-                await this.copyObjectToTenant(sourceItem, target);
+                await this.copyObjectToTenant(sourceItem, targetItem);
             }
-            return;
-        }
-
-        const transferItem = dataTransfer.get(IIQTreeDragAndDropController.MIME_TYPE);
-        if (!transferItem) {
-            return;
-        }
-        // Dropping on a tenant or on the background moves to the root
-        const targetFolderId = target instanceof FolderTreeItem ? target.folder.id : undefined;
-        const ids = JSON.parse(await transferItem.asString()) as string[];
-        for (const id of ids) {
-            await this.tenantService.move(id, targetFolderId);
         }
     }
+
+    /**
+     * Folder the dragged nodes must end up in. Folders auto-expand while dragging,
+     * so a drop aimed at a folder often lands on one of its children: any item
+     * belonging to an environment designates the folder holding that environment.
+     */
+    private resolveTargetFolderId(target: BaseTreeItem | undefined): string | undefined {
+        if (target instanceof FolderTreeItem) {
+            return target.folder.id;
+        }
+        const tenant = getTenantOf(target);
+        return tenant ? this.tenantService.getParentFolderId(tenant.id) : undefined;
+    }
+}
+
+/** Environment an item belongs to: the environment itself, or one of its descendants */
+function getTenantOf(item: BaseTreeItem | undefined): TenantInfo | undefined {
+    if (item instanceof TenantTreeItem
+        || item instanceof ObjectTypeTreeItem
+        || item instanceof ObjectTreeItem
+        || item instanceof Log4jConfigTreeItem) {
+        return item.tenant;
+    }
+    if (item instanceof LoadMoreTreeItem) {
+        return item.parent.tenant;
+    }
+    return undefined;
 }

@@ -130,6 +130,15 @@ suite("TenantService Test Suite", () => {
         // Move it back into the top folder
         await tenantService.move(tenant.id, folder.id);
         assert.ok(tenantService.getChildren(folder.id).some(n => n.id === tenant.id));
+
+        assert.strictEqual(tenantService.getParentFolderId(tenant.id), folder.id);
+        assert.strictEqual(tenantService.getParentFolderId(subFolder.id), folder.id);
+        assert.strictEqual(tenantService.getParentFolderId(folder.id), undefined);
+
+        // Moving a folder into one of its own descendants leaves it untouched
+        await tenantService.move(folder.id, subFolder.id);
+        assert.ok(tenantService.getRoots().some(n => n.id === folder.id));
+        assert.strictEqual(tenantService.getChildren(subFolder.id).length, 0);
     });
 
     test("UC-06: removing a folder removes nested credentials", async () => {
