@@ -7,8 +7,8 @@ This document presents the release process, just to not forget.
 - [ ] Update `README.md` with plugin version
 - [ ] Update `CHANGELOG.md`
 - [ ] Update version in `package.json`
-- [ ] Update version in `vscode-plugin/pom.xml`
-- [ ] Update Discuss page: https://developer.sailpoint.com/discuss/t/identitynow-extensions-for-visual-studio-code/5983/2
+- [ ] Update version in `vscode-plugin/pom.xml` (parent `<version>`) and in the `<parent><version>` of `vscode-plugin/core/pom.xml`, `vscode-plugin/iiq8/pom.xml` and `vscode-plugin/iiq9/pom.xml`  (or `cd vscode-plugin && mvn versions:set -DnewVersion=x.y.z`)
+- [ ] Update Discuss page: https://developer.sailpoint.com/discuss/t/identityiq-extension-for-visual-studio-code-cursor/223749
 
 == Publish in the marketplace and GitHub Release
 
@@ -36,4 +36,4 @@ git push --delete origin releases/v0.0.3
 
 Compare a tag and HEAD:
 
-https://github.com/yannick-beot-sp/vscode-sailpoint-identitynow/compare/releases%2Fv0.0.25..HEAD
+https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/compare/releases%2Fv0.0.25..HEAD

@@ -36,7 +36,7 @@ The tests access the extension services through the API returned by
 
 `src/test/live.test.ts` exercises a real instance with the iiq-devtools
 plugin installed. To (re)deploy the plugin to the local docker environment,
-run `vscode-plugin/deploy.sh --build --restart` (see
+run `vscode-plugin/deploy.sh --build --restart` (`--iiq-version 9` for an IIQ 9 container; see
 [vscode-plugin/README.md](../vscode-plugin/README.md)). Default target
 (overridable by environment variables):
 

@@ -1,4 +1,4 @@
-package com.sailpoint.se.plugin.vscode.rest;
+package com.sailpoint.se.plugin.vscode.service;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;

@@ -12,13 +12,15 @@
 # (or install through the UI, gear > Plugins) for immediate loading.
 #
 # Usage: ./deploy.sh [options]
-#   -b, --build            run `mvn package` first
+#   -v, --iiq-version N    IdentityIQ generation of the target: 8 (default,
+#                          Tomcat 9) or 9 (Tomcat 10); selects the artifact
+#   -b, --build            run `mvn package` (for that generation) first
 #   -r, --restart          restart the container after install (required for
 #                          the running webapp to pick up a console install)
 #   -c, --container NAME   target container (default: first one whose image
 #                          matches iiq:*)
 #   -z, --zip PATH         plugin zip (default: most recently built
-#                          target/vscode-plugin-*-bin.zip)
+#                          iiq<N>/target/vscode-plugin-iiq<N>-*-bin.zip)
 #   -h, --help             this help
 #
 # Environment (for the final ping check):
@@ -37,6 +39,7 @@ IIQ_USER="${IIQ_USER:-spadmin}"
 IIQ_PASSWORD="${IIQ_PASSWORD:-admin}"
 PING_URL="$IIQ_URL/plugin/rest/iiq-devtools/system/ping"
 
+IIQ_GEN="8"
 BUILD=false
 RESTART=false
 CONTAINER=""
@@ -46,6 +49,7 @@ usage() { sed -n '2,/^$/s/^# \{0,1\}//p' "${BASH_SOURCE[0]}"; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -v|--iiq-version) IIQ_GEN="$2"; shift ;;
     -b|--build) BUILD=true ;;
     -r|--restart) RESTART=true ;;
     -c|--container) CONTAINER="$2"; shift ;;
@@ -55,6 +59,8 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+[[ "$IIQ_GEN" == "8" || "$IIQ_GEN" == "9" ]] || { echo "--iiq-version must be 8 or 9" >&2; exit 1; }
 
 log()  { echo -e "\033[1;34m==>\033[0m $*"; }
 fail() { echo -e "\033[1;31mERROR:\033[0m $*" >&2; exit 1; }
@@ -73,15 +79,15 @@ iiq_console() {
 # --- Build ------------------------------------------------------------------
 
 if $BUILD; then
-  log "Building the plugin (mvn package)"
-  (cd "$SCRIPT_DIR" && mvn -q package)
+  log "Building the plugin for IdentityIQ $IIQ_GEN (mvn package)"
+  (cd "$SCRIPT_DIR" && mvn -q package -pl "iiq$IIQ_GEN" -am)
 fi
 
 if [[ -z "$ZIP" ]]; then
-  ZIP="$(ls -t "$SCRIPT_DIR"/target/vscode-plugin-*-bin.zip 2>/dev/null | head -1)"
+  ZIP="$(ls -t "$SCRIPT_DIR"/iiq"$IIQ_GEN"/target/vscode-plugin-iiq"$IIQ_GEN"-*-bin.zip 2>/dev/null | head -1)"
 fi
 
-[[ -n "$ZIP" && -f "$ZIP" ]] || fail "Plugin zip not found in target/ (build it with 'mvn package' or pass --build), or pass --zip PATH"
+[[ -n "$ZIP" && -f "$ZIP" ]] || fail "Plugin zip not found in iiq$IIQ_GEN/target/ (build it with 'mvn package' or pass --build), or pass --zip PATH"
 
 # --- Locate the container ----------------------------------------------------
 

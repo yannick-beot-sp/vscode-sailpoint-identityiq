@@ -6,25 +6,67 @@ extension. It exposes the REST API specified in
 [docs/plugin-api.md](../docs/plugin-api.md) under
 `{baseUrl}/plugin/rest/iiq-devtools`.
 
+## Which artifact for which IdentityIQ?
+
+IdentityIQ 8.x runs on Tomcat 9 (`javax.*` namespace) and IdentityIQ 9.x on
+Tomcat 10 (`jakarta.*`): a plugin REST resource cannot work on both. The
+build therefore produces **two zips**, one per generation:
+
+| IdentityIQ | Artifact |
+|---|---|
+| 8.0 and later 8.x | `vscode-plugin-iiq8-<version>-bin.zip` |
+| 9.0 and later | `vscode-plugin-iiq9-<version>-bin.zip` |
+
+Installing the wrong one fails with a `javax` / `jakarta` `NoClassDefFoundError`.
+
+## Project structure
+
+Multi-module Maven project:
+
+| Module | Role |
+|---|---|
+| `core` (`vscode-plugin-core`) | All the logic: `DevToolsService`, DTOs, `BulkExportMerge`. **No JAX-RS dependency**; compiled against the oldest supported IIQ (8.5). Gets what it needs from the request through the `RequestEnvironment` interface. |
+| `iiq8` (`vscode-plugin-iiq8`) | Thin REST wrapper (`javax.ws.rs`), packaged with the core into the IIQ 8 zip. |
+| `iiq9` (`vscode-plugin-iiq9`) | Thin REST wrapper (`jakarta.ws.rs`), packaged with the core into the IIQ 9 zip. |
+
+Shared by both zips: `src/main/plugin-resources` (`manifest.xml`, SPRight
+import) and `build-config/assembly/plugin-files.xml`. `manifest.xml` is
+filtered; only `minSystemVersion` differs (`8.0` / `9.0`).
+
+**Adding or changing an endpoint**: implement it in `DevToolsService` (returns
+a `Map` envelope, throws `DevToolsException(status, message)` on failure),
+then add the delegating method in **both** wrappers
+(`VSCodePluginResource`). The two wrapper files must stay identical apart from
+the `javax` / `jakarta` imports. Never import JAX-RS in `core`.
+
 ## Build
 
-Requires the IdentityIQ jar in the local Maven repository (see the root
-README, section *Install IdentityIQ libraries*), then:
+Requires the IdentityIQ jars in the local Maven repository (see the root
+README, section *Install IdentityIQ libraries*): `identityiq` and
+`connector-bundle-identityiq` in version `8.5` (core and `iiq8`) and `9.0`
+(`iiq9`). Then:
 
 ```bash
-mvn package
+mvn package                     # both zips
+mvn package -pl iiq8 -am        # IIQ 8 only
+mvn package -pl iiq9 -am        # IIQ 9 only
 ```
 
-The installable plugin zip is produced in `target/vscode-plugin-<version>-bin.zip`
-(`<version>` is the plugin's own version, set in `pom.xml`, e.g. `1.0.0`).
+The zips are produced in `iiq8/target/vscode-plugin-iiq8-<version>-bin.zip` and
+`iiq9/target/vscode-plugin-iiq9-<version>-bin.zip` (`<version>` is the
+plugin's own version, set in the parent `pom.xml` and the modules' `<parent>`).
+
+To compile everything against a single IIQ release (e.g. when only 8.5 is
+installed locally): `mvn package -Diiq.version=8.5`.
 
 ## Install
 
-Install the zip like any IIQ plugin: *gear icon > Plugins > New*, or:
+Install the zip matching your IdentityIQ generation like any IIQ plugin:
+*gear icon > Plugins > New*, or:
 
 ```
 iiq console
-> plugin install target/vscode-plugin-<version>-bin.zip
+> plugin install vscode-plugin-iiq8-<version>-bin.zip
 ```
 
 ## Deploy to the local docker environment
@@ -34,7 +76,8 @@ IdentityIQ container (any running container whose image matches `iiq:*`,
 e.g. `iiq-docker-iiq-1`):
 
 ```bash
-./deploy.sh --build --restart
+./deploy.sh --build --restart            # IIQ 8 container (default)
+./deploy.sh --iiq-version 9 --build --restart   # IIQ 9 container
 ```
 
 It runs, in order:
@@ -49,7 +92,7 @@ It runs, in order:
 6. an authenticated `GET /system/ping` against the REST API and prints the
    version payload.
 
-Options: `--container NAME` and `--zip PATH` override the defaults;
+Options: `--iiq-version 8|9` (artifact to build and deploy), `--container NAME` and `--zip PATH` override the defaults;
 `IIQ_URL` / `IIQ_USER` / `IIQ_PASSWORD` (default
 `http://localhost:8080/identityiq`, `spadmin` / `admin`) configure the final
 ping check. Run `./deploy.sh --help` for details.

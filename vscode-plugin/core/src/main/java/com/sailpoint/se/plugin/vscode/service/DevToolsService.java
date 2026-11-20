@@ -1,4 +1,4 @@
-package com.sailpoint.se.plugin.vscode.rest;
+package com.sailpoint.se.plugin.vscode.service;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,21 +34,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.HEAD;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.EntityTag;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -78,6 +63,7 @@ import com.sailpoint.se.plugin.vscode.dto.TaskStatusDto;
 
 import lombok.extern.log4j.Log4j2;
 import sailpoint.Version;
+import sailpoint.api.SailPointContext;
 import sailpoint.api.Matchmaker;
 import sailpoint.api.ObjectUtil;
 import sailpoint.api.TaskManager;
@@ -112,9 +98,6 @@ import sailpoint.object.SailPointObject;
 import sailpoint.object.TaskDefinition;
 import sailpoint.object.TaskResult;
 import sailpoint.object.TaskSchedule;
-import sailpoint.rest.BaseResource;
-import sailpoint.rest.plugin.BasePluginResource;
-import sailpoint.rest.plugin.RequiredRight;
 import sailpoint.server.ImportExecutor;
 import sailpoint.server.Importer;
 import sailpoint.tools.GeneralException;
@@ -137,19 +120,21 @@ import sailpoint.tools.xml.XMLObjectFactory;
  * {@code application/xml} String entity arrives null), so mutation endpoints
  * consume {@code application/json} with the XML in the {@code xml} property.
  */
-@Path("iiq-devtools")
-@Produces(MediaType.APPLICATION_JSON)
 @Log4j2
-public class VSCodePluginResource extends BasePluginResource {
+public class DevToolsService {
+
+    /** Name of the plugin, as declared in manifest.xml */
+    public static final String PLUGIN_NAME = "vscodePlugin";
 
     /** Version of the REST contract implemented by this resource */
     public static final int API_VERSION = 1;
 
     /**
-     * SPRight protecting every endpoint. System Administrators always pass
-     * the check, even when the SPRight object has not been imported.
+     * SPRight protecting every endpoint (enforced by the REST wrappers via
+     * {@code @RequiredRight}). System Administrators always pass the check,
+     * even when the SPRight object has not been imported.
      */
-    private static final String ACCESS_RIGHT = "iiqDevToolsAccess";
+    public static final String ACCESS_RIGHT = "iiqDevToolsAccess";
 
     /**
      * Supported object types, keyed by their name relative to the
@@ -167,7 +152,7 @@ public class VSCodePluginResource extends BasePluginResource {
      * HEAD response: the extension needs it before fetching the body to
      * name the editor tab (log4j2.properties, log4j2.xml...).
      */
-    static final String FILE_NAME_HEADER = "X-IIQ-File-Name";
+    public static final String FILE_NAME_HEADER = "X-IIQ-File-Name";
 
     /**
      * Conventional Log4j2 configuration file names, tried under
@@ -238,25 +223,17 @@ public class VSCodePluginResource extends BasePluginResource {
     /** Maximum bytes read from a log file by one tail call */
     private static final int LOG_MAX_CHUNK_BYTES = 64 * 1024;
 
-    @Override
-    public String getPluginName() {
-        return "vscodePlugin";
-    }
+    private final RequestEnvironment environment;
 
     /**
-     * Default constructor.
+     * @param environment gives access to the state of the current REST request
      */
-    public VSCodePluginResource() {
-        super();
+    public DevToolsService(RequestEnvironment environment) {
+        this.environment = environment;
     }
 
-    /**
-     * Inherited constructor.
-     *
-     * @param parent
-     */
-    public VSCodePluginResource(BaseResource parent) {
-        super(parent);
+    private SailPointContext context() {
+        return environment.getContext();
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -266,17 +243,14 @@ public class VSCodePluginResource extends BasePluginResource {
     /**
      * Connection test and version negotiation.
      */
-    @GET
-    @Path("system/ping")
-    @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> ping() throws GeneralException {
         LOG.debug("ping()");
-        Plugin plugin = getContext().getObjectByName(Plugin.class, getPluginName());
+        Plugin plugin = context().getObjectByName(Plugin.class, PLUGIN_NAME);
         return ok(SystemInfoDto.builder()
                 .version(Version.getFullVersion())
                 .pluginVersion(plugin != null ? plugin.getVersion() : "unknown")
                 .apiVersion(API_VERSION)
-                .identity(getLoggedInUserName())
+                .identity(environment.getLoggedInUserName())
                 .build());
     }
 
@@ -284,9 +258,6 @@ public class VSCodePluginResource extends BasePluginResource {
      * Object types supported by the generic interface, including the virtual
      * {@code Workgroup} alias (Identity with {@code workgroup=true}).
      */
-    @GET
-    @Path("system/classes")
-    @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> classes() {
         LOG.debug("classes()");
         List<String> names = new ArrayList<>(MAJOR_CLASSES.keySet());
@@ -308,9 +279,6 @@ public class VSCodePluginResource extends BasePluginResource {
      * carries the real file name and path: the configuration may be an XML
      * or YAML file, and the extension labels the editor tab with it.
      */
-    @GET
-    @Path("system/log4j")
-    @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> getLog4jConfig() {
         LOG.debug("getLog4jConfig()");
         File file = resolveLog4jConfigFile();
@@ -321,7 +289,7 @@ public class VSCodePluginResource extends BasePluginResource {
             return response;
         } catch (IOException e) {
             LOG.error("Could not read the Log4j2 configuration {}", file, e);
-            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+            throw error(500,
                     "Could not read " + file.getAbsolutePath() + ": " + e.getMessage());
         }
     }
@@ -331,26 +299,17 @@ public class VSCodePluginResource extends BasePluginResource {
      * etag) for the virtual file system's {@code stat()} without
      * transferring the body.
      */
-    @HEAD
-    @Path("system/log4j")
-    @RequiredRight(ACCESS_RIGHT)
-    public Response headLog4jConfig() {
+    public HeadResult headLog4jConfig() {
         LOG.debug("headLog4jConfig()");
         File file = resolveLog4jConfigFile();
         try {
             byte[] bytes = Files.readAllBytes(file.toPath());
-            Response.ResponseBuilder builder = Response.ok()
-                    .header("Content-Length", bytes.length)
-                    .header(FILE_NAME_HEADER, file.getName())
-                    .tag(new EntityTag(sha256(bytes)));
             long modified = file.lastModified();
-            if (modified > 0) {
-                builder.lastModified(new Date(modified));
-            }
-            return builder.build();
+            return new HeadResult(bytes.length, sha256(bytes), modified > 0 ? new Date(modified) : null,
+                    Collections.singletonMap(FILE_NAME_HEADER, file.getName()));
         } catch (IOException e) {
             LOG.error("Could not stat the Log4j2 configuration {}", file, e);
-            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+            throw error(500,
                     "Could not read " + file.getAbsolutePath() + ": " + e.getMessage());
         }
     }
@@ -362,10 +321,6 @@ public class VSCodePluginResource extends BasePluginResource {
      * server with its fallback console-only configuration: in that case the
      * previous content is restored, reapplied, and the request fails.
      */
-    @PUT
-    @Path("system/log4j")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> putLog4jConfig(Map<String, Object> body) {
         String content = contentFromBody(body);
         File file = resolveLog4jConfigFile();
@@ -376,7 +331,7 @@ public class VSCodePluginResource extends BasePluginResource {
             if (!reconfigureLog4j(file)) {
                 writeTextFile(file, previous);
                 reconfigureLog4j(file);
-                throw error(Response.Status.BAD_REQUEST,
+                throw error(400,
                         "Log4j2 rejected the configuration; the previous " + file.getName() + " was restored");
             }
             audit("updateLog4jConfig", file.getAbsolutePath());
@@ -386,11 +341,11 @@ public class VSCodePluginResource extends BasePluginResource {
             result.put("size", file.length());
             result.put("reloaded", true);
             return ok(result);
-        } catch (WebApplicationException e) {
+        } catch (DevToolsException e) {
             throw e;
         } catch (IOException e) {
             LOG.error("Could not write the Log4j2 configuration {}", file, e);
-            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+            throw error(500,
                     "Could not write " + file.getAbsolutePath() + ": " + e.getMessage());
         }
     }
@@ -403,23 +358,20 @@ public class VSCodePluginResource extends BasePluginResource {
      * Paginated, sorted list of objects. Uses a projection search: objects
      * are never fully loaded for listing.
      */
-    @GET
-    @Path("objects/{type}")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> list(@PathParam("type") String type,
-                                    @QueryParam("start") @DefaultValue("0") int start,
-                                    @QueryParam("limit") @DefaultValue("200") int limit,
-                                    @QueryParam("sortBy") @DefaultValue("name") String sortBy,
-                                    @QueryParam("sortDir") @DefaultValue("asc") String sortDir,
-                                    @QueryParam("query") String query,
-                                    @QueryParam("excludeTypes") String excludeTypes,
-                                    @QueryParam("includeTemplates") @DefaultValue("false") boolean includeTemplates)
+    public Map<String, Object> list(String type,
+                                    int start,
+                                    int limit,
+                                    String sortBy,
+                                    String sortDir,
+                                    String query,
+                                    String excludeTypes,
+                                    boolean includeTemplates)
             throws GeneralException {
         LOG.debug("list(type={}, start={}, limit={}, sortBy={}, sortDir={}, query={}, excludeTypes={}, includeTemplates={})",
                 type, start, limit, sortBy, sortDir, query, excludeTypes, includeTemplates);
         Class<? extends SailPointObject> clazz = resolveClass(type);
         if (!"name".equals(sortBy) && !"modified".equals(sortBy)) {
-            throw error(Response.Status.BAD_REQUEST, "sortBy must be \"name\" or \"modified\"");
+            throw error(400, "sortBy must be \"name\" or \"modified\"");
         }
 
         QueryOptions countOptions = new QueryOptions();
@@ -460,9 +412,9 @@ public class VSCodePluginResource extends BasePluginResource {
             queryOptions.addOrdering("name", true);
         }
 
-        int count = getContext().countObjects(clazz, countOptions);
+        int count = context().countObjects(clazz, countOptions);
         List<ObjectSummaryDto> summaries = new ArrayList<>();
-        Iterator<Object[]> rows = getContext().search(clazz, queryOptions,
+        Iterator<Object[]> rows = context().search(clazz, queryOptions,
                 Arrays.asList("id", "name", "created", "modified"));
         while (rows.hasNext()) {
             Object[] row = rows.next();
@@ -482,15 +434,12 @@ public class VSCodePluginResource extends BasePluginResource {
      * XML representation of a single object, as a string in the envelope
      * (standard IIQ export format, header and CDATA sections included).
      */
-    @GET
-    @Path("objects/{type}/{nameOrId}")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> get(@PathParam("type") String type,
-                                   @PathParam("nameOrId") String nameOrId) throws GeneralException {
+    public Map<String, Object> get(String type,
+                                   String nameOrId) throws GeneralException {
         LOG.debug("get(type={}, nameOrId={})", type, nameOrId);
         SailPointObject object = find(resolveClass(type), nameOrId);
         if (object == null) {
-            throw error(Response.Status.NOT_FOUND, type + " \"" + nameOrId + "\" not found");
+            throw error(404, type + " \"" + nameOrId + "\" not found");
         }
         return ok(toXml(object));
     }
@@ -499,21 +448,17 @@ public class VSCodePluginResource extends BasePluginResource {
      * Builds an additive SSB merge document by comparing the live object with
      * a baseline XML document. Supported types match V2Plugin Object Exporter.
      */
-    @POST
-    @Path("objects/{type}/{nameOrId}/merge-xml")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> mergeXml(@PathParam("type") String type,
-                                        @PathParam("nameOrId") String nameOrId,
+    public Map<String, Object> mergeXml(String type,
+                                        String nameOrId,
                                         Map<String, Object> body) throws GeneralException {
         Object baselineValue = body == null ? null : body.get("baselineXml");
         if (!(baselineValue instanceof String) || Util.isNullOrEmpty((String) baselineValue)) {
-            throw error(Response.Status.BAD_REQUEST, "Missing or empty baselineXml");
+            throw error(400, "Missing or empty baselineXml");
         }
         Class<? extends SailPointObject> clazz = resolveClass(type);
         SailPointObject current = find(clazz, nameOrId);
         if (current == null) {
-            throw error(Response.Status.NOT_FOUND, type + " \"" + nameOrId + "\" not found");
+            throw error(404, type + " \"" + nameOrId + "\" not found");
         }
         SailPointObject baseline = parse(clazz, (String) baselineValue);
         LOG.debug("mergeXml(type={}, nameOrId={}, baselineBytes={})",
@@ -522,18 +467,15 @@ public class VSCodePluginResource extends BasePluginResource {
     }
 
     /** Resolves an internal id across the supported major classes. */
-    @GET
-    @Path("system/object-name/{id}")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> resolveObjectName(@PathParam("id") String id) throws GeneralException {
+    public Map<String, Object> resolveObjectName(String id) throws GeneralException {
         LOG.debug("resolveObjectName(id={})", id);
         for (Class<? extends SailPointObject> clazz : MAJOR_CLASSES.values()) {
-            SailPointObject object = getContext().getObjectById(clazz, id);
+            SailPointObject object = context().getObjectById(clazz, id);
             if (object != null) {
                 return ok(object.getName());
             }
         }
-        throw error(Response.Status.NOT_FOUND, "Object id \"" + id + "\" not found");
+        throw error(404, "Object id \"" + id + "\" not found");
     }
 
     /**
@@ -541,46 +483,33 @@ public class VSCodePluginResource extends BasePluginResource {
      * headers, no body. Serves the stat() calls of the extension's virtual
      * file system.
      */
-    @HEAD
-    @Path("objects/{type}/{nameOrId}")
-    @RequiredRight(ACCESS_RIGHT)
-    public Response head(@PathParam("type") String type,
-                         @PathParam("nameOrId") String nameOrId) throws GeneralException {
+    public HeadResult head(String type,
+                         String nameOrId) throws GeneralException {
         LOG.debug("head(type={}, nameOrId={})", type, nameOrId);
         SailPointObject object = find(resolveClass(type), nameOrId);
         if (object == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            return null;
         }
         byte[] xml = toXml(object).getBytes(StandardCharsets.UTF_8);
         Date lastModified = object.getModified() != null ? object.getModified() : object.getCreated();
-        Response.ResponseBuilder builder = Response.ok()
-                .header("Content-Length", xml.length)
-                .tag(new EntityTag(sha256(xml)));
-        if (lastModified != null) {
-            builder.lastModified(lastModified);
-        }
-        return builder.build();
+        return new HeadResult(xml.length, sha256(xml), lastModified, Collections.emptyMap());
     }
 
     /**
      * Creates an object from its XML representation. 409 if an object with
      * the same name already exists.
      */
-    @POST
-    @Path("objects/{type}")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
-    public Response create(@PathParam("type") String type, Map<String, Object> body) throws GeneralException {
+    public Map<String, Object> create(String type, Map<String, Object> body) throws GeneralException {
         String xml = xmlFromBody(body);
         LOG.info("create(type={}, {} bytes)", type, xml.length());
         Class<? extends SailPointObject> clazz = resolveClass(type);
         SailPointObject parsed = parse(clazz, xml);
-        if (parsed.getName() != null && getContext().getObjectByName(clazz, parsed.getName()) != null) {
-            throw error(Response.Status.CONFLICT,
+        if (parsed.getName() != null && context().getObjectByName(clazz, parsed.getName()) != null) {
+            throw error(409,
                     type + " \"" + parsed.getName() + "\" already exists");
         }
         SailPointObject saved = importSingleObject(clazz, xml, parsed.getName());
-        return Response.status(Response.Status.CREATED).entity(ok(toXml(saved))).build();
+        return ok(toXml(saved));
     }
 
     /**
@@ -588,12 +517,8 @@ public class VSCodePluginResource extends BasePluginResource {
      * an import of a single object: internal ids present in the XML are
      * ignored, references are resolved by name.
      */
-    @PUT
-    @Path("objects/{type}/{nameOrId}")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> update(@PathParam("type") String type,
-                                      @PathParam("nameOrId") String nameOrId,
+    public Map<String, Object> update(String type,
+                                      String nameOrId,
                                       Map<String, Object> body) throws GeneralException {
         String xml = xmlFromBody(body);
         LOG.info("update(type={}, nameOrId={}, {} bytes)", type, nameOrId, xml.length());
@@ -606,20 +531,16 @@ public class VSCodePluginResource extends BasePluginResource {
     /**
      * Deletes an object, cleaning up its references with the Terminator.
      */
-    @DELETE
-    @Path("objects/{type}/{nameOrId}")
-    @RequiredRight(ACCESS_RIGHT)
-    public Response delete(@PathParam("type") String type,
-                           @PathParam("nameOrId") String nameOrId) throws GeneralException {
+    public void delete(String type,
+                           String nameOrId) throws GeneralException {
         Class<? extends SailPointObject> clazz = resolveClass(type);
         SailPointObject object = find(clazz, nameOrId);
         if (object == null) {
-            throw error(Response.Status.NOT_FOUND, type + " \"" + nameOrId + "\" not found");
+            throw error(404, type + " \"" + nameOrId + "\" not found");
         }
         LOG.info("delete(type={}, name={})", type, object.getName());
-        new Terminator(getContext()).deleteObject(object);
-        getContext().commitTransaction();
-        return Response.noContent().build();
+        new Terminator(context()).deleteObject(object);
+        context().commitTransaction();
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -630,10 +551,6 @@ public class VSCodePluginResource extends BasePluginResource {
      * Imports an arbitrary XML document (single object or sailpoint bundle),
      * like "System Setup > Import from File" / iiq console import.
      */
-    @POST
-    @Path("import")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> importXml(Map<String, Object> body) {
         String xml = xmlFromBody(body);
         LOG.info("import({} bytes)", xml.length());
@@ -652,15 +569,11 @@ public class VSCodePluginResource extends BasePluginResource {
      * Runs a rule and returns its result. Rule failures (BeanShell
      * exceptions) are returned as 400 with the exception message.
      */
-    @POST
-    @Path("objects/Rule/{nameOrId}/run")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> runRule(@PathParam("nameOrId") String nameOrId,
+    public Map<String, Object> runRule(String nameOrId,
                                        Map<String, Object> args) throws GeneralException {
         Rule rule = find(Rule.class, nameOrId);
         if (rule == null) {
-            throw error(Response.Status.NOT_FOUND, "Rule \"" + nameOrId + "\" not found");
+            throw error(404, "Rule \"" + nameOrId + "\" not found");
         }
         LOG.info("runRule(name={}, args={})", rule.getName(), args == null ? "{}" : args.keySet());
         audit("runRule", rule.getName());
@@ -668,10 +581,10 @@ public class VSCodePluginResource extends BasePluginResource {
         long started = System.currentTimeMillis();
         Object value;
         try {
-            value = getContext().runRule(rule, args != null ? args : new HashMap<>());
+            value = context().runRule(rule, args != null ? args : new HashMap<>());
         } catch (GeneralException e) {
             LOG.error("Rule \"{}\" failed", rule.getName(), e);
-            throw error(Response.Status.BAD_REQUEST, e.getLocalizedMessage());
+            throw error(400, e.getLocalizedMessage());
         }
         Map<String, Object> response = ok(jsonSafe(value));
         response.put("executionTimeMs", System.currentTimeMillis() - started);
@@ -687,15 +600,11 @@ public class VSCodePluginResource extends BasePluginResource {
      * tracking the execution. A unique result name is forced so the
      * TaskResult can be resolved immediately, without waiting for completion.
      */
-    @POST
-    @Path("objects/TaskDefinition/{nameOrId}/run")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> runTask(@PathParam("nameOrId") String nameOrId,
+    public Map<String, Object> runTask(String nameOrId,
                                        Map<String, Object> args) throws GeneralException {
         TaskDefinition definition = find(TaskDefinition.class, nameOrId);
         if (definition == null) {
-            throw error(Response.Status.NOT_FOUND, "TaskDefinition \"" + nameOrId + "\" not found");
+            throw error(404, "TaskDefinition \"" + nameOrId + "\" not found");
         }
         LOG.info("runTask(name={}, args={})", definition.getName(), args == null ? "{}" : args.keySet());
         audit("runTask", definition.getName());
@@ -708,13 +617,13 @@ public class VSCodePluginResource extends BasePluginResource {
         }
         attributes.put(TaskSchedule.ARG_RESULT_NAME, resultName);
 
-        TaskManager taskManager = new TaskManager(getContext());
-        taskManager.setLauncher(getLoggedInUserName());
+        TaskManager taskManager = new TaskManager(context());
+        taskManager.setLauncher(environment.getLoggedInUserName());
         try {
             taskManager.run(definition, attributes);
         } catch (GeneralException e) {
             LOG.error("Task \"{}\" could not be launched", definition.getName(), e);
-            throw error(Response.Status.BAD_REQUEST, e.getLocalizedMessage());
+            throw error(400, e.getLocalizedMessage());
         }
         return ok(waitForTaskResult(resultName).getId());
     }
@@ -724,17 +633,14 @@ public class VSCodePluginResource extends BasePluginResource {
      * the task runs. Answered from a projection query; the full TaskResult
      * is only loaded (for the messages) once the task has completed.
      */
-    @GET
-    @Path("objects/TaskResult/{nameOrId}/status")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> taskStatus(@PathParam("nameOrId") String nameOrId) throws GeneralException {
+    public Map<String, Object> taskStatus(String nameOrId) throws GeneralException {
         LOG.debug("taskStatus(nameOrId={})", nameOrId);
         QueryOptions queryOptions = new QueryOptions();
         queryOptions.addFilter(Filter.or(Filter.eq("id", nameOrId), Filter.eq("name", nameOrId)));
-        Iterator<Object[]> rows = getContext().search(TaskResult.class, queryOptions,
+        Iterator<Object[]> rows = context().search(TaskResult.class, queryOptions,
                 Arrays.asList("id", "name", "completed", "completionStatus"));
         if (!rows.hasNext()) {
-            throw error(Response.Status.NOT_FOUND, "TaskResult \"" + nameOrId + "\" not found");
+            throw error(404, "TaskResult \"" + nameOrId + "\" not found");
         }
         Object[] row = rows.next();
         Util.flushIterator(rows);
@@ -745,7 +651,7 @@ public class VSCodePluginResource extends BasePluginResource {
 
         List<String> messages = new ArrayList<>();
         if (completed != null) {
-            TaskResult result = getContext().getObjectById(TaskResult.class, id);
+            TaskResult result = context().getObjectById(TaskResult.class, id);
             if (result != null && result.getMessages() != null) {
                 // Iterated as Object: resolving sailpoint.tools.Message members
                 // would require openconnector classes, absent from identityiq.jar.
@@ -775,15 +681,12 @@ public class VSCodePluginResource extends BasePluginResource {
      * (invalid host, bad credentials...) are returned as 400 with the
      * exception message; anything else (unknown application) is 404.
      */
-    @POST
-    @Path("objects/Application/{nameOrId}/test-connection")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> testApplicationConnection(@PathParam("nameOrId") String nameOrId)
+    public Map<String, Object> testApplicationConnection(String nameOrId)
             throws GeneralException {
         LOG.debug("testApplicationConnection(nameOrId={})", nameOrId);
         Application application = find(Application.class, nameOrId);
         if (application == null) {
-            throw error(Response.Status.NOT_FOUND, "Application \"" + nameOrId + "\" not found");
+            throw error(404, "Application \"" + nameOrId + "\" not found");
         }
         LOG.info("testApplicationConnection(name={})", application.getName());
         audit("testApplicationConnection", application.getName());
@@ -794,7 +697,7 @@ public class VSCodePluginResource extends BasePluginResource {
             connector.testConfiguration();
         } catch (GeneralException | ConnectorException e) {
             LOG.error("Connection test failed for Application \"{}\"", application.getName(), e);
-            throw error(Response.Status.BAD_REQUEST, e.getLocalizedMessage());
+            throw error(400, e.getLocalizedMessage());
         }
         return ok("Connection to \"" + application.getName() + "\" succeeded.");
     }
@@ -809,9 +712,6 @@ public class VSCodePluginResource extends BasePluginResource {
      * are readable, and they are referenced by appender name — a path is
      * never accepted as input.
      */
-    @GET
-    @Path("logs")
-    @RequiredRight(ACCESS_RIGHT)
     public Map<String, Object> listLogFiles() {
         LOG.debug("listLogFiles()");
         List<LogFileDto> files = new ArrayList<>();
@@ -841,16 +741,13 @@ public class VSCodePluginResource extends BasePluginResource {
      * server-side for the next call (cut on bytes, so multi-byte characters
      * are never split).
      */
-    @GET
-    @Path("logs/{key}/tail")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> tailLogFile(@PathParam("key") String key,
-                                           @QueryParam("offset") @DefaultValue("-1") long offset) {
+    public Map<String, Object> tailLogFile(String key,
+                                           long offset) {
         LOG.debug("tailLogFile(key={}, offset={})", key, offset);
         Appender appender = getLoggerContext().getConfiguration().getAppender(key);
         File file = appender == null ? null : resolveAppenderFile(appender);
         if (file == null) {
-            throw error(Response.Status.NOT_FOUND, "Unknown log appender: " + key);
+            throw error(404, "Unknown log appender: " + key);
         }
         if (!file.exists()) {
             // The file may appear later (lazy appenders): keep polling
@@ -869,7 +766,7 @@ public class VSCodePluginResource extends BasePluginResource {
             // E.g. the file was swapped by a rename-rotation mid-read: the
             // client treats it as transient and the next poll self-heals
             LOG.error("Could not read log file {}", file, e);
-            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+            throw error(500,
                     "Could not read the log file: " + e.getMessage());
         }
 
@@ -909,11 +806,7 @@ public class VSCodePluginResource extends BasePluginResource {
      * on restart. Creates the {@code LoggerConfig} for the given name if it
      * did not already have one of its own.
      */
-    @PUT
-    @Path("logs/levels/{logger}")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> setLoggerLevel(@PathParam("logger") String logger, Map<String, Object> body) {
+    public Map<String, Object> setLoggerLevel(String logger, Map<String, Object> body) {
         Level level = parseLevel(body);
         LOG.info("setLoggerLevel(logger={}, level={})", logger, level);
         audit("setLoggerLevel", logger + "=" + level);
@@ -925,27 +818,23 @@ public class VSCodePluginResource extends BasePluginResource {
      * Removes a logger's explicit level override, so it reverts to
      * inheriting from its parent in the live Log4j2 configuration.
      */
-    @DELETE
-    @Path("logs/levels/{logger}")
-    @RequiredRight(ACCESS_RIGHT)
-    public Response resetLoggerLevel(@PathParam("logger") String logger) {
+    public void resetLoggerLevel(String logger) {
         LOG.info("resetLoggerLevel(logger={})", logger);
         audit("resetLoggerLevel", logger);
         Configurator.setLevel(logger, (Level) null);
-        return Response.noContent().build();
     }
 
     /** Extracts and validates the {@code level} property of a PUT body */
     private static Level parseLevel(Map<String, Object> body) {
         Object levelName = body == null ? null : body.get("level");
         if (!(levelName instanceof String) || Util.isNullOrEmpty((String) levelName)) {
-            throw error(Response.Status.BAD_REQUEST,
+            throw error(400,
                     "The request body must be a JSON object with a non-empty \"level\" string property");
         }
         String upper = ((String) levelName).toUpperCase();
         Level level = Level.toLevel(upper, null);
         if (level == null || !level.name().equals(upper)) {
-            throw error(Response.Status.BAD_REQUEST,
+            throw error(400,
                     "Unknown level \"" + levelName + "\": expected one of TRACE, DEBUG, INFO, WARN, ERROR, FATAL, OFF");
         }
         return level;
@@ -962,19 +851,16 @@ public class VSCodePluginResource extends BasePluginResource {
      * which is all a tab refresh consumes. The Identity XML is never part of
      * the payload: the webview fetches it separately, on demand.
      */
-    @GET
-    @Path("identities/{nameOrId}/view")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> identityView(@PathParam("nameOrId") String nameOrId,
-                                            @QueryParam("section") String section) throws GeneralException {
+    public Map<String, Object> identityView(String nameOrId,
+                                            String section) throws GeneralException {
         LOG.debug("identityView(nameOrId={}, section={})", nameOrId, section);
         if (Util.isNotNullOrEmpty(section) && !IDENTITY_SECTIONS.contains(section)) {
-            throw error(Response.Status.BAD_REQUEST, "Unknown section \"" + section
+            throw error(400, "Unknown section \"" + section
                     + "\": expected one of " + String.join(", ", IDENTITY_SECTIONS));
         }
         Identity identity = find(Identity.class, nameOrId);
         if (identity == null) {
-            throw error(Response.Status.NOT_FOUND, "Identity \"" + nameOrId + "\" not found");
+            throw error(404, "Identity \"" + nameOrId + "\" not found");
         }
         return ok(buildIdentityView(identity, Util.isNullOrEmpty(section) ? null : section));
     }
@@ -984,11 +870,8 @@ public class VSCodePluginResource extends BasePluginResource {
      * three types the drawer can open are supported; everything else is 404,
      * so an unexpected type never turns into a full object load.
      */
-    @GET
-    @Path("objects/{type}/{nameOrId}/summary")
-    @RequiredRight(ACCESS_RIGHT)
-    public Map<String, Object> summary(@PathParam("type") String type,
-                                       @PathParam("nameOrId") String nameOrId) throws GeneralException {
+    public Map<String, Object> summary(String type,
+                                       String nameOrId) throws GeneralException {
         LOG.debug("summary(type={}, nameOrId={})", type, nameOrId);
         if ("Bundle".equals(type)) {
             return ok(bundleSummary(nameOrId));
@@ -999,13 +882,13 @@ public class VSCodePluginResource extends BasePluginResource {
         if ("Link".equals(type)) {
             return ok(linkSummary(nameOrId));
         }
-        throw error(Response.Status.NOT_FOUND, "Summaries are not supported for " + type);
+        throw error(404, "Summaries are not supported for " + type);
     }
 
     private ObjectDetailDto bundleSummary(String nameOrId) throws GeneralException {
         Bundle role = find(Bundle.class, nameOrId);
         if (role == null) {
-            throw error(Response.Status.NOT_FOUND, "Bundle \"" + nameOrId + "\" not found");
+            throw error(404, "Bundle \"" + nameOrId + "\" not found");
         }
         return ObjectDetailDto.builder()
                 .id(role.getId())
@@ -1022,7 +905,7 @@ public class VSCodePluginResource extends BasePluginResource {
     private ObjectDetailDto managedAttributeSummary(String nameOrId) throws GeneralException {
         ManagedAttribute entitlement = findManagedAttribute(nameOrId);
         if (entitlement == null) {
-            throw error(Response.Status.NOT_FOUND, "ManagedAttribute \"" + nameOrId + "\" not found");
+            throw error(404, "ManagedAttribute \"" + nameOrId + "\" not found");
         }
         Application application = entitlement.getApplication();
         return ObjectDetailDto.builder()
@@ -1031,7 +914,7 @@ public class VSCodePluginResource extends BasePluginResource {
                 .displayName(entitlement.getDisplayName())
                 .type(entitlement.getType())
                 .owner(reference(entitlement.getOwner()))
-                .description(entitlement.getDescription(getLocale()))
+                .description(entitlement.getDescription(environment.getLocale()))
                 .application(application != null ? application.getName() : null)
                 .value(entitlement.getValue())
                 .classifications(entitlement.getClassificationDisplayNames())
@@ -1044,9 +927,9 @@ public class VSCodePluginResource extends BasePluginResource {
      * hands the drawer.
      */
     private ObjectDetailDto linkSummary(String id) throws GeneralException {
-        Link link = getContext().getObjectById(Link.class, id);
+        Link link = context().getObjectById(Link.class, id);
         if (link == null) {
-            throw error(Response.Status.NOT_FOUND, "Link \"" + id + "\" not found");
+            throw error(404, "Link \"" + id + "\" not found");
         }
         return ObjectDetailDto.builder()
                 .id(link.getId())
@@ -1119,7 +1002,7 @@ public class VSCodePluginResource extends BasePluginResource {
         QueryOptions options = new QueryOptions();
         options.addFilter(Filter.eq("value", nameOrId));
         options.setResultLimit(1);
-        List<ManagedAttribute> found = getContext().getObjects(ManagedAttribute.class, options);
+        List<ManagedAttribute> found = context().getObjects(ManagedAttribute.class, options);
         return Util.isEmpty(found) ? null : found.get(0);
     }
 
@@ -1384,7 +1267,7 @@ public class VSCodePluginResource extends BasePluginResource {
             List<String> chunk = names.subList(from, Math.min(names.size(), from + QUERY_CHUNK_SIZE));
             QueryOptions options = new QueryOptions();
             options.addFilter(Filter.in("name", chunk));
-            Iterator<Bundle> found = getContext().search(Bundle.class, options);
+            Iterator<Bundle> found = context().search(Bundle.class, options);
             while (found.hasNext()) {
                 Bundle role = found.next();
                 RoleRow target = rows.get(role.getName());
@@ -1397,7 +1280,7 @@ public class VSCodePluginResource extends BasePluginResource {
                     }
                     target.classifications = listOrEmpty(role.getClassificationDisplayNames());
                 }
-                getContext().decache(role);
+                context().decache(role);
             }
         }
     }
@@ -1494,7 +1377,7 @@ public class VSCodePluginResource extends BasePluginResource {
         options.setResultLimit(IDENTITY_ENTITLEMENT_LIMIT);
 
         List<Object[]> rows = new ArrayList<>();
-        Iterator<Object[]> found = getContext().search(IdentityEntitlement.class, options,
+        Iterator<Object[]> found = context().search(IdentityEntitlement.class, options,
                 Arrays.asList("id", "application.name", "type", "name", "value", "attributes",
                         "nativeIdentity"));
         while (found.hasNext()) {
@@ -1583,7 +1466,7 @@ public class VSCodePluginResource extends BasePluginResource {
                 QueryOptions options = new QueryOptions();
                 options.addFilter(Filter.eq("application.name", entry.getKey()));
                 options.addFilter(Filter.in("value", chunk));
-                Iterator<ManagedAttribute> found = getContext().search(ManagedAttribute.class, options);
+                Iterator<ManagedAttribute> found = context().search(ManagedAttribute.class, options);
                 while (found.hasNext()) {
                     ManagedAttribute entitlement = found.next();
                     lookup.idsByKey.put(
@@ -1592,7 +1475,7 @@ public class VSCodePluginResource extends BasePluginResource {
                             entitlement.getId());
                     lookup.classificationsById.put(entitlement.getId(),
                             listOrEmpty(entitlement.getClassificationDisplayNames()));
-                    getContext().decache(entitlement);
+                    context().decache(entitlement);
                 }
             }
         }
@@ -1680,13 +1563,13 @@ public class VSCodePluginResource extends BasePluginResource {
      * treated as everyone (the stock "Everyone" scope).
      */
     private List<IdentityQuickLinkDto> identityQuickLinks(Identity identity) throws GeneralException {
-        Matchmaker matcher = new Matchmaker(getContext());
+        Matchmaker matcher = new Matchmaker(context());
         matcher.setArgument(Matchmaker.ARG_IDENTITY, identity);
 
         QueryOptions options = new QueryOptions();
         options.addOrdering("name", true);
         List<IdentityQuickLinkDto> quickLinks = new ArrayList<>();
-        Iterator<QuickLink> found = getContext().search(QuickLink.class, options);
+        Iterator<QuickLink> found = context().search(QuickLink.class, options);
         try {
             while (found.hasNext()) {
                 QuickLink quickLink = found.next();
@@ -1833,12 +1716,9 @@ public class VSCodePluginResource extends BasePluginResource {
         return envelope;
     }
 
-    /** Failure envelope: HTTP status + { "error": ... } */
-    private static WebApplicationException error(Response.Status status, String message) {
-        return new WebApplicationException(Response.status(status)
-                .type(MediaType.APPLICATION_JSON)
-                .entity(Collections.singletonMap("error", message))
-                .build());
+    /** Failure: the wrapper turns it into HTTP status + { "error": ... } */
+    private static DevToolsException error(int status, String message) {
+        return new DevToolsException(status, message);
     }
 
     /**
@@ -1848,7 +1728,7 @@ public class VSCodePluginResource extends BasePluginResource {
     private static String contentFromBody(Map<String, Object> body) {
         Object content = body == null ? null : body.get("content");
         if (!(content instanceof String) || Util.isNullOrEmpty((String) content)) {
-            throw error(Response.Status.BAD_REQUEST,
+            throw error(400,
                     "The request body must be a JSON object with a non-empty \"content\" string property");
         }
         return (String) content;
@@ -1867,11 +1747,11 @@ public class VSCodePluginResource extends BasePluginResource {
             file = conventionalLog4jConfigFile();
         }
         if (file == null) {
-            throw error(Response.Status.NOT_FOUND,
+            throw error(404,
                     "The live Log4j2 configuration is not backed by a file on this server");
         }
         if (!file.isFile()) {
-            throw error(Response.Status.NOT_FOUND,
+            throw error(404,
                     "The Log4j2 configuration file was not found at " + file.getAbsolutePath());
         }
         return file;
@@ -1964,7 +1844,7 @@ public class VSCodePluginResource extends BasePluginResource {
     private static String xmlFromBody(Map<String, Object> body) {
         Object xml = body == null ? null : body.get("xml");
         if (!(xml instanceof String) || Util.isNullOrEmpty((String) xml)) {
-            throw error(Response.Status.BAD_REQUEST,
+            throw error(400,
                     "The request body must be a JSON object with a non-empty \"xml\" string property");
         }
         return (String) xml;
@@ -1996,7 +1876,7 @@ public class VSCodePluginResource extends BasePluginResource {
         try {
             propertyType = clazz.getMethod("getType").getReturnType();
         } catch (NoSuchMethodException e) {
-            throw error(Response.Status.BAD_REQUEST,
+            throw error(400,
                     "excludeTypes is not supported for " + clazz.getSimpleName());
         }
         List<Object> values = new ArrayList<>();
@@ -2005,7 +1885,7 @@ public class VSCodePluginResource extends BasePluginResource {
                 try {
                     values.add(Enum.valueOf((Class<Enum>) propertyType, name));
                 } catch (IllegalArgumentException e) {
-                    throw error(Response.Status.BAD_REQUEST,
+                    throw error(400,
                             "Unknown " + clazz.getSimpleName() + " type: " + name);
                 }
             } else {
@@ -2027,15 +1907,15 @@ public class VSCodePluginResource extends BasePluginResource {
         }
         Class<? extends SailPointObject> clazz = type == null ? null : MAJOR_CLASSES.get(type);
         if (clazz == null) {
-            throw error(Response.Status.NOT_FOUND, "Unknown or unsupported object type: " + type);
+            throw error(404, "Unknown or unsupported object type: " + type);
         }
         return clazz;
     }
 
     /** Resolves an object by id first, then by name */
     private <T extends SailPointObject> T find(Class<T> clazz, String nameOrId) throws GeneralException {
-        T object = getContext().getObjectById(clazz, nameOrId);
-        return object != null ? object : getContext().getObjectByName(clazz, nameOrId);
+        T object = context().getObjectById(clazz, nameOrId);
+        return object != null ? object : context().getObjectByName(clazz, nameOrId);
     }
 
     /** Serializes an object to the standard IIQ export XML, header included */
@@ -2047,12 +1927,12 @@ public class VSCodePluginResource extends BasePluginResource {
     private <T extends SailPointObject> T parse(Class<T> clazz, String xml) {
         Object parsed;
         try {
-            parsed = XMLObjectFactory.getInstance().parseXml(getContext(), xml, false);
+            parsed = XMLObjectFactory.getInstance().parseXml(context(), xml, false);
         } catch (RuntimeException e) {
-            throw error(Response.Status.BAD_REQUEST, "Invalid XML: " + e.getMessage());
+            throw error(400, "Invalid XML: " + e.getMessage());
         }
         if (!clazz.isInstance(parsed)) {
-            throw error(Response.Status.BAD_REQUEST,
+            throw error(400,
                     "The XML does not contain a " + clazz.getSimpleName());
         }
         return clazz.cast(parsed);
@@ -2067,11 +1947,11 @@ public class VSCodePluginResource extends BasePluginResource {
         List<String> errors = new ArrayList<>();
         doImport(xml, errors);
         if (!errors.isEmpty()) {
-            throw error(Response.Status.BAD_REQUEST, String.join("; ", errors));
+            throw error(400, String.join("; ", errors));
         }
-        T saved = getContext().getObjectByName(clazz, name);
+        T saved = context().getObjectByName(clazz, name);
         if (saved == null) {
-            throw error(Response.Status.INTERNAL_SERVER_ERROR,
+            throw error(500,
                     "The import did not produce " + clazz.getSimpleName() + " \"" + name + "\"");
         }
         return saved;
@@ -2083,7 +1963,7 @@ public class VSCodePluginResource extends BasePluginResource {
      */
     private List<String> doImport(String xml, List<String> errors) {
         List<String> imported = new ArrayList<>();
-        Importer importer = new Importer(getContext(), new Importer.Monitor() {
+        Importer importer = new Importer(context(), new Importer.Monitor() {
             @Override
             public void report(SailPointObject object) {
                 imported.add(object.getClass().getSimpleName() + ":" + object.getName());
@@ -2117,7 +1997,7 @@ public class VSCodePluginResource extends BasePluginResource {
         });
         try {
             importer.importXml(xml);
-            getContext().commitTransaction();
+            context().commitTransaction();
         } catch (GeneralException e) {
             LOG.error("Import failed", e);
             errors.add(e.getLocalizedMessage());
@@ -2131,7 +2011,7 @@ public class VSCodePluginResource extends BasePluginResource {
      */
     private TaskResult waitForTaskResult(String resultName) throws GeneralException {
         for (int attempt = 0; attempt < TASK_RESULT_WAIT_ATTEMPTS; attempt++) {
-            TaskResult result = getContext().getObjectByName(TaskResult.class, resultName);
+            TaskResult result = context().getObjectByName(TaskResult.class, resultName);
             if (result != null) {
                 return result;
             }
@@ -2141,9 +2021,9 @@ public class VSCodePluginResource extends BasePluginResource {
                 Thread.currentThread().interrupt();
                 break;
             }
-            getContext().decache();
+            context().decache();
         }
-        throw error(Response.Status.INTERNAL_SERVER_ERROR,
+        throw error(500,
                 "The task was launched but its TaskResult \"" + resultName + "\" was not found");
     }
 
@@ -2181,9 +2061,9 @@ public class VSCodePluginResource extends BasePluginResource {
     /** Audits an execution (rule run, task launch); never fails the request */
     private void audit(String action, String target) {
         try {
-            AuditEvent event = new AuditEvent(getLoggedInUserName(), "iiq-devtools:" + action, target);
-            getContext().saveObject(event);
-            getContext().commitTransaction();
+            AuditEvent event = new AuditEvent(environment.getLoggedInUserName(), "iiq-devtools:" + action, target);
+            context().saveObject(event);
+            context().commitTransaction();
         } catch (GeneralException e) {
             LOG.warn("Could not audit {} on {}", action, target, e);
         }

@@ -11,13 +11,13 @@
     <dependencySet>
       <outputDirectory>lib</outputDirectory>
       <includes>
-        <include>${project.groupId}:${project.artifactId}:jar</include>
+        <include>${project.groupId}:*:jar</include>
       </includes>
     </dependencySet>
   </dependencySets>
   <fileSets>
     <fileSet>
-      <directory>${project.basedir}</directory>
+      <directory>${project.basedir}/..</directory>
       <outputDirectory>${file.separator}</outputDirectory>
       <includes>
         <include>README.md</include>
@@ -26,7 +26,7 @@
       </includes>
     </fileSet>
     <fileSet>
-      <directory>${project.basedir}/src/main/webapp</directory>
+      <directory>${project.basedir}/../src/main/webapp</directory>
       <outputDirectory>${file.separator}</outputDirectory>
       <includes>
         <include>ui/**/*</include>
@@ -34,7 +34,7 @@
       </includes>
     </fileSet>
     <fileSet>
-      <directory>${project.basedir}/src/main/plugin-resources</directory>
+      <directory>${plugin.resources.dir}</directory>
       <outputDirectory>${file.separator}</outputDirectory>
       <includes>
         <include>**/*</include>

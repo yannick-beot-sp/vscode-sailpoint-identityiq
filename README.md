@@ -25,7 +25,10 @@ refresh and compare IIQ objects without leaving your editor.
 
 - Visual Studio Code `>= 1.125`.
 - The **iiq-devtools companion plugin** installed in your IdentityIQ instance 
-  (see [vscode-plugin-*-bin.zip](https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/releases/latest/)).
+  (see the [latest release](https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/releases/latest/)).
+  Two zips are published, install the one matching your IdentityIQ:
+  - `vscode-plugin-iiq8-*-bin.zip` for IdentityIQ **8.x** (Tomcat 9);
+  - `vscode-plugin-iiq9-*-bin.zip` for IdentityIQ **9.x** (Tomcat 10).
 - An IIQ account allowed to use the plugin endpoints.
 
 ## Getting started
@@ -222,7 +225,9 @@ npm test        # unit + integration tests (mock plugin server);
 
 ## Install IdentityIQ libraries
 
-In order to compile plugins, you will need IdentityIQ libraries.
+In order to compile plugins, you will need IdentityIQ libraries, in both
+generations: version `8.5` (used by the shared core and the IIQ 8 plugin) and
+`9.0` (IIQ 9 plugin). Repeat the commands below once per version.
 
 To install them, execute the following command
 

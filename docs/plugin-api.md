@@ -92,8 +92,10 @@ envelope).
 - **Plugin versioning**: `pluginVersion` in the ping response is purely
   informational (never compared by the extension). It is the `<Plugin
   version="...">` attribute of `manifest.xml`, itself filled from
-  `${project.version}` (`vscode-plugin/pom.xml`) when Maven builds the zip.
-  Bump `pom.xml`'s `<version>` by hand before packaging a release of the
+  `${project.version}` (`vscode-plugin/pom.xml`) when Maven builds the zips
+  (one per IdentityIQ generation, 8.x and 9.x, same contract and same
+  version). Bump the `<version>` of the parent `pom.xml` and of the modules'
+  `<parent>` by hand before packaging a release of the
   plugin, following semver: patch for internal fixes with no visible change,
   minor for backward-compatible additions, major together with an
   `apiVersion` bump when the REST contract breaks.
