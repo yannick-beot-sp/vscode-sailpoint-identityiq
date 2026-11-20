@@ -347,7 +347,7 @@
       },
       {
         "command": "iiq.filter-objects",
-        "title": "Filter by name...",
+        "title": "Filter by name or advanced filter...",
         "category": "IIQ",
         "icon": "$(search)"
       },

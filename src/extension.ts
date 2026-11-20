@@ -15,6 +15,7 @@ import { COMMANDS, DIFF_SCHEME, URI_SCHEME, VIEW_ID } from "./constants";
 import { IIQRemoteContentProvider, IIQResourceProvider } from "./files/IIQResourceProvider";
 import { IdentityViewProvider } from "./identity/IdentityViewProvider";
 import { registerIdentityIqMcp } from "./mcp/register";
+import { InvalidFilterError } from "./services/IIQClient";
 import { EnvironmentStatusBar } from "./services/EnvironmentStatusBar";
 import { TenantService } from "./services/TenantService";
 import { IIQTreeDataProvider, IIQTreeDragAndDropController } from "./views/IIQTreeDataProvider";
@@ -161,16 +162,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<IIQExt
         vscode.commands.registerCommand(COMMANDS.sortByLastModified,
             (node: ObjectTypeTreeItem) => treeDataProvider.sortBy(node, "lastModified")),
         vscode.commands.registerCommand(COMMANDS.filterObjects, async (node: ObjectTypeTreeItem) => {
-            const query = await vscode.window.showInputBox({
-                prompt: `Filter ${node.definition.label} by name`,
-                placeHolder: "Name contains...",
-                value: treeDataProvider.getFilter(node),
-                ignoreFocusOut: true
-            });
-            if (query === undefined) {
-                return;
+            let value = treeDataProvider.getFilter(node);
+            // Loops until the server accepts the query or the user cancels (Escape)
+            for (;;) {
+                const query = await vscode.window.showInputBox({
+                    prompt: `Filter ${node.definition.label} by name or advanced filter`,
+                    placeHolder: 'name or e.g. department == "Finance"',
+                    title: "Filter (name or IIQ filter expression)",
+                    value,
+                    ignoreFocusOut: true
+                });
+                if (query === undefined) {
+                    return; // cancelled: the previous filter is kept
+                }
+                try {
+                    await treeDataProvider.trySetFilter(node, query.trim() || undefined);
+                    return;
+                } catch (error) {
+                    if (!(error instanceof InvalidFilterError)) {
+                        vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+                        return;
+                    }
+                    vscode.window.showErrorMessage(`Invalid filter: ${error.message}`);
+                    value = query;
+                }
             }
-            treeDataProvider.setFilter(node, query.trim() || undefined);
         }),
         vscode.commands.registerCommand(COMMANDS.clearFilter,
             (node: ObjectTypeTreeItem) => treeDataProvider.setFilter(node, undefined))

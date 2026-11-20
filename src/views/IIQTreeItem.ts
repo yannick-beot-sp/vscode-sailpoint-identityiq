@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { COMMANDS, CONTEXT_VALUES } from "../constants";
-import { ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
+import { FilterMode, ObjectSummary, ObjectTypeDefinition } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { FolderTreeNode } from "../models/TreeNode";
 import { buildResourceUri } from "../utils/UriUtils";
@@ -46,14 +46,16 @@ export class ObjectTypeTreeItem extends BaseTreeItem {
         public readonly tenant: TenantInfo,
         public readonly definition: ObjectTypeDefinition,
         sortedBy: "name" | "lastModified",
-        filter?: string) {
+        filter?: string,
+        filterMode?: FilterMode) {
         super(definition.label, vscode.TreeItemCollapsibleState.Collapsed);
         this.id = `${tenant.id}/${definition.objectType}`;
         // The sort order, filtered state and object type are part of the context value to
         // drive the "Sort by..."/"Filter..." context menu entries and type-specific actions
         // (cf. package.json)
         this.contextValue = `${CONTEXT_VALUES.objectType}-${definition.objectType}-sorted-by-${sortedBy}${filter ? "-filtered" : ""}`;
-        this.description = filter ? `filter: ${filter}` : undefined;
+        // "name:" for a name search, "filter:" for an advanced filter (or when the plugin does not say)
+        this.description = filter ? `${filterMode === "name" ? "name" : "filter"}: ${filter}` : undefined;
         this.iconPath = new vscode.ThemeIcon(definition.icon);
     }
 }

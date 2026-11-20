@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { OBJECT_TYPES, ObjectSummary } from "../models/ObjectTypes";
+import { FilterMode, OBJECT_TYPES, ObjectSummary } from "../models/ObjectTypes";
 import { TenantInfo } from "../models/TenantInfo";
 import { isFolderTreeNode, isTenantInfo } from "../models/TreeNode";
 import { IIQClient } from "../services/IIQClient";
@@ -21,8 +21,13 @@ interface ObjectTypeNodeState {
     limit: number;
     /** Sort override for this node. Defaults to the `iiq.objectList.sort` setting */
     sortBy?: SortField;
-    /** Case-insensitive filter on the object name */
+    /**
+     * Filter string: plain text (case-insensitive name search) or an IIQ
+     * filter such as `department == "Finance"`; the plugin decides which
+     */
     query?: string;
+    /** How the plugin interpreted `query`, when it reported it */
+    filterMode?: FilterMode;
 }
 
 /**
@@ -73,10 +78,32 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
         this.refreshTenant(node.tenant);
     }
 
-    /** Filters the objects displayed under the given object type node by name */
-    public setFilter(node: ObjectTypeTreeItem, query: string | undefined): void {
+    /**
+     * Filters the objects displayed under the given object type node by name
+     * or with an IIQ filter. The query is validated by the server with a
+     * first page request, so that an invalid filter is never stored:
+     * throws InvalidFilterError and leaves the current filter untouched.
+     */
+    public async trySetFilter(node: ObjectTypeTreeItem, query: string | undefined): Promise<void> {
+        if (!query) {
+            this.setFilter(node, undefined);
+            return;
+        }
+        const client = new IIQClient(node.tenant, this.tenantService);
+        const result = await client.listObjects(node.definition.objectType, {
+            start: 0,
+            limit: 1,
+            query,
+            excludeTypes: node.definition.excludeTypes
+        });
+        this.setFilter(node, query, result.filterMode);
+    }
+
+    /** Applies (or clears) the filter without validation: use trySetFilter for user input */
+    public setFilter(node: ObjectTypeTreeItem, query: string | undefined, filterMode?: FilterMode): void {
         const state = this.getNodeState(node);
         state.query = query;
+        state.filterMode = query ? filterMode : undefined;
         state.limit = getPageSize();
         this.refreshTenant(node.tenant);
     }
@@ -93,7 +120,7 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
         this.onDidChangeTreeDataEmitter.fire(this.tenantItems.get(tenant.id));
     }
 
-    /** Current name filter applied to the given object type node, if any */
+    /** Current filter (name or advanced) applied to the given object type node, if any */
     public getFilter(node: ObjectTypeTreeItem): string | undefined {
         return this.nodeStates.get(node.id!)?.query;
     }
@@ -119,7 +146,8 @@ export class IIQTreeDataProvider implements vscode.TreeDataProvider<BaseTreeItem
                         element.tenant,
                         definition,
                         this.getNodeSort(nodeId),
-                        this.nodeStates.get(nodeId)?.query);
+                        this.nodeStates.get(nodeId)?.query,
+                        this.nodeStates.get(nodeId)?.filterMode);
                 })
             ];
         }

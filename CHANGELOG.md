@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Advanced filter** on object type nodes: the *Filter* action accepts plain text (case-insensitive name search, unchanged) or an IIQ filter string, e.g. `department == "Finance" && inactive == false` or `name.startsWith("a")`. The plugin decides which one was typed (new `filterMode` field in the list response: `name` or `advanced`) and compiles filter strings with `Filter.compile`, never evaluating them. A filter-like input that is invalid or targets an unknown property is answered with HTTP 400 `{ "error": "INVALID_FILTER", "message": ... }`; the extension shows "Invalid filter: ..." and reopens the input box pre-filled, and an invalid filter is never stored in the tree. A name containing filter syntax (e.g. `A&&B`) must be searched with `name == "A&&B"`. Queries are limited to 1000 characters. (cf. [#6](https://github.com/yannick-beot-sp/vscode-sailpoint-identityiq/issues/6))
+
 ### Fixed
 
 - Environments and folders could not be dragged into a folder anymore. The drag only carried the copy payload when an object was part of the tree selection, so the drop showed "Drop an object onto an environment to copy it." instead of moving the environment. A drop landing inside a folder (on an environment, an object type, an object, …) now moves the dragged nodes into that folder instead of sending them back to the root, which matters because folders auto-expand under the cursor while dragging. Dropping a folder into one of its own descendants leaves it where it is instead of moving it to the root.

@@ -217,7 +217,7 @@ Query parameters:
 | `limit` | `200` | Page size (`QueryOptions.setResultLimit`) |
 | `sortBy` | `name` | `name` or `modified` |
 | `sortDir` | `asc` | `asc` or `desc` |
-| `query` | — | Optional case-insensitive filter on the name (`Filter.ignoreCase(Filter.like("name", query))`) |
+| `query` | — | Optional. Plain text: case-insensitive name search. Input containing filter syntax (`==`, `&&`, `(`, `.startsWith(`...): IIQ filter string compiled with `Filter.compile` and validated against the class; invalid => HTTP 400 `{ "error": "INVALID_FILTER", "message": "..." }`. Max 1000 chars. The response carries `filterMode` (`name` or `advanced`) |
 | `excludeTypes` | — | Optional CSV of `type` values to exclude, e.g. `Report,LiveReport` to keep reports out of a `TaskDefinition` list. `400` when the class has no `type` property or a value does not match its enum |
 | `includeTemplates` | `false` | Include TaskDefinition templates; used by bulk export |
 

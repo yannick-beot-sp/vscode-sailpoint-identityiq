@@ -1,6 +1,5 @@
 package com.sailpoint.se.plugin.vscode.rest;
 
-import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 
@@ -320,6 +319,17 @@ public class VSCodePluginResource extends BasePluginResource {
         T execute() throws GeneralException;
     }
 
+    private static Map<String, Object> errorBody(DevToolsException e) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        if (e.getCode() != null) {
+            body.put("error", e.getCode());
+            body.put("message", e.getMessage());
+        } else {
+            body.put("error", e.getMessage());
+        }
+        return body;
+    }
+
     /**
      * Runs a service call, converting its {@link DevToolsException} to the
      * HTTP error envelope {@code { "error": "..." }}. Other exceptions are
@@ -331,7 +341,7 @@ public class VSCodePluginResource extends BasePluginResource {
         } catch (DevToolsException e) {
             throw new WebApplicationException(Response.status(e.getStatus())
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(Collections.singletonMap("error", e.getMessage()))
+                    .entity(errorBody(e))
                     .build());
         } catch (GeneralException e) {
             throw new WebApplicationException(e);

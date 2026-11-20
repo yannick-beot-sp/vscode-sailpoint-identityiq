@@ -61,6 +61,17 @@ refresh and compare IIQ objects without leaving your editor.
 - **Paginated** lists (`iiq.pagination.pageSize`, default 200) with
   *Load more...*, sorted **by name or by last modification date** (global
   setting + per-node override).
+- **Filter** an object type node with plain text (case-insensitive *name
+  contains*) or an **IIQ filter string**, decided by the plugin:
+  `john` (name search), `department == "Finance"`,
+  `department == "Finance" && inactive == false`, `name.startsWith("a")`.
+  An input containing filter syntax (`==`, `&&`, `(`, `.contains(`, ...) that is
+  invalid or references an unknown property is rejected (HTTP 400
+  `INVALID_FILTER`): the error is shown and the input box reopens pre-filled;
+  Escape keeps the previous filter. A name that looks like a filter (e.g.
+  `A&&B`) must be searched explicitly: `name == "A&&B"` or
+  `name.contains("A&&B")`. Queries are limited to 1000 characters. Requires
+  the updated plugin; an older plugin treats everything as a name search.
 - Objects open in a **virtual file system** (`iiq://.../<Env>/<Type>/<name>.xml`
   — the environment display name is part of the path). **Saving the editor
   saves the object back to IdentityIQ.**

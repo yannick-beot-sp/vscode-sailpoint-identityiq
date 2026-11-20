@@ -13,7 +13,7 @@ import {
     IdentityView,
     ObjectSummaryView
 } from "../identity/identityViewModel";
-import { ObjectListResult, ObjectSummary } from "../models/ObjectTypes";
+import { FilterMode, ObjectListResult, ObjectSummary } from "../models/ObjectTypes";
 import { TenantCredentials, TenantInfo } from "../models/TenantInfo";
 import { wrapSourceCdata } from "../utils/xmlUtils";
 
@@ -137,7 +137,11 @@ export interface ListObjectsOptions {
     start?: number;
     limit?: number;
     sortBy?: SortField;
-    /** Optional case-insensitive filter on the object name */
+    /**
+     * Optional query: plain text (case-insensitive name search) or an IIQ
+     * filter string such as `department == "Finance"`. The plugin decides.
+     * An invalid filter raises {@link InvalidFilterError}.
+     */
     query?: string;
     /** Values of the `type` attribute to exclude (e.g. Report, LiveReport) */
     excludeTypes?: string[];
@@ -217,7 +221,7 @@ export class IIQClient {
     public async listObjects(objectType: string, options: ListObjectsOptions = {}): Promise<ObjectListResult> {
         const client = await this.getAxios();
         try {
-            const response = await client.get<Envelope<ObjectSummary[]> & { count: number }>(
+            const response = await client.get<Envelope<ObjectSummary[]> & { count: number; filterMode?: FilterMode }>(
                 `/objects/${encodeURIComponent(objectType)}`, {
                 params: {
                     start: options.start ?? 0,
@@ -229,8 +233,16 @@ export class IIQClient {
                     includeTemplates: options.includeTemplates || undefined
                 }
             });
-            return { count: response.data.count, objects: response.data.result };
+            return {
+                count: response.data.count,
+                objects: response.data.result,
+                filterMode: response.data.filterMode
+            };
         } catch (error) {
+            const invalid = toInvalidFilterError(error);
+            if (invalid) {
+                throw invalid;
+            }
             throw improveError(error, this.tenant);
         }
     }
@@ -604,6 +616,27 @@ export class IIQClient {
             throw improveError(error, this.tenant);
         }
     }
+}
+
+/**
+ * The query of the list endpoint looked like an IIQ filter but is invalid
+ * (syntax error or unknown property): HTTP 400 `INVALID_FILTER`.
+ */
+export class InvalidFilterError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "InvalidFilterError";
+    }
+}
+
+function toInvalidFilterError(error: unknown): InvalidFilterError | undefined {
+    if (axios.isAxiosError(error) && error.response?.status === 400) {
+        const data = error.response.data as { error?: string; message?: string } | undefined;
+        if (data?.error === "INVALID_FILTER") {
+            return new InvalidFilterError(data.message ?? "invalid filter");
+        }
+    }
+    return undefined;
 }
 
 /**

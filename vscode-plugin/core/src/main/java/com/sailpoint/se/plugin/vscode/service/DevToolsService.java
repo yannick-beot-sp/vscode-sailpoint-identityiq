@@ -376,10 +376,20 @@ public class DevToolsService {
 
         QueryOptions countOptions = new QueryOptions();
         QueryOptions queryOptions = new QueryOptions();
-        if (Util.isNotNullOrEmpty(query)) {
-            Filter filter = Filter.ignoreCase(Filter.like("name", query, Filter.MatchMode.ANYWHERE));
-            countOptions.addFilter(filter);
-            queryOptions.addFilter(filter);
+        // Plain text: name search. Filter-like input: IIQ filter string, validated
+        // against the class with a probe count (unknown property => 400, never 500).
+        QueryFilterResolver.Result userQuery = QueryFilterResolver.resolve(query, compiled -> {
+            try {
+                QueryOptions probe = new QueryOptions();
+                probe.addFilter(compiled);
+                context().countObjects(clazz, probe);
+            } catch (GeneralException | RuntimeException e) {
+                throw new IllegalArgumentException(rootMessage(e), e);
+            }
+        });
+        if (userQuery.getFilter() != null) {
+            countOptions.addFilter(userQuery.getFilter());
+            queryOptions.addFilter(userQuery.getFilter());
         }
         if (Util.isNotNullOrEmpty(excludeTypes)) {
             Filter filter = buildExcludeTypesFilter(clazz, excludeTypes);
@@ -427,7 +437,19 @@ public class DevToolsService {
         }
         Map<String, Object> response = ok(summaries);
         response.put("count", count);
+        if (userQuery.getMode() != null) {
+            response.put("filterMode", userQuery.getMode());
+        }
         return response;
+    }
+
+    /** Message of the deepest cause, the most meaningful one for Hibernate errors */
+    private static String rootMessage(Throwable t) {
+        Throwable root = t;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root.getMessage() != null ? root.getMessage() : t.toString();
     }
 
     /**

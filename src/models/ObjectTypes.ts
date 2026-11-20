@@ -130,4 +130,12 @@ export interface ObjectListResult {
     /** Total number of objects for the type (regardless of pagination) */
     count: number;
     objects: ObjectSummary[];
+    /**
+     * How the plugin interpreted the query: a name search or an advanced IIQ
+     * filter. Absent without query, or with a plugin predating this field.
+     */
+    filterMode?: FilterMode;
 }
+
+/** Interpretation of the filter string by the plugin */
+export type FilterMode = "name" | "advanced";
