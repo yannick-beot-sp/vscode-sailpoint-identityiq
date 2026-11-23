@@ -24,6 +24,8 @@ export interface ObjectTypeDefinition {
 export const OBJECT_TYPES: ObjectTypeDefinition[] = [
     { objectType: "Application", label: "Applications", icon: "plug" },
     { objectType: "Bundle", label: "Bundles", icon: "folder-library" },
+    { objectType: "Configuration", label: "Configurations", icon: "gear" },
+    { objectType: "Custom", label: "Customs", icon: "symbol-misc" },
     { objectType: "Form", label: "Forms", icon: "preview" },
     { objectType: "Identity", label: "Identities", icon: "person" },
     { objectType: "ObjectConfig", label: "ObjectConfigs", icon: "settings-gear" },
